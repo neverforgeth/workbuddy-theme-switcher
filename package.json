@@ -1,0 +1,35 @@
+{
+  "name": "workbuddy-theme-switcher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/run-with-cargo.mjs tauri dev",
+    "build": "node scripts/run-with-cargo.mjs tauri build --debug",
+    "package:installer": "node scripts/run-with-cargo.mjs tauri build --bundles nsis",
+    "vite:dev": "vite --host 127.0.0.1 --port 1432",
+    "vite:build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test:rust": "node scripts/run-with-cargo.mjs cargo test --manifest-path src-tauri/Cargo.toml"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-autostart": "^2.5.1",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.18.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.20.0",
+    "vite": "^6.0.0"
+  }
+}

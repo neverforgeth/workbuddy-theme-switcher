@@ -1,0 +1,50 @@
+import codexThemeV1Profile from "../runtime/profiles/codex-theme-v1.mjs";
+import codexHostSettings from "../host/codex-settings.mjs";
+
+const codex = {
+  id: "codex",
+  displayName: "OpenAI Codex",
+  defaultPort: 9335,
+  lastVerified: {
+    darwin: { appVersion: "26.707.72221", build: "5307", verifiedAt: "2026-07-16" },
+  },
+  rendererProfiles: {
+    [codexThemeV1Profile.id]: codexThemeV1Profile,
+  },
+  hostSettings: codexHostSettings,
+  platforms: {
+    darwin: {
+      bundleId: "com.openai.codex",
+      appCandidates: ["/Applications/ChatGPT.app", "~/Applications/ChatGPT.app"],
+      executableRelative: "Contents/MacOS/ChatGPT",
+      processMarkers: ["/ChatGPT.app/Contents/MacOS/ChatGPT"],
+    },
+    win32: {
+      appxPackage: "OpenAI.Codex",
+      executableRelative: "app\\ChatGPT.exe",
+      processNames: ["ChatGPT.exe"],
+    },
+  },
+  matchTarget(target) {
+    if (target?.type !== "page") return false;
+    const url = String(target.url ?? "");
+    // Codex hosts hidden auxiliary surfaces on the same app:// origin, keyed by
+    // an initialRoute query (e.g. index.html?initialRoute=%2Favatar-overlay on
+    // Windows 26.715). They never grow the main-window DOM, so they are not
+    // themeable windows.
+    if (/initialRoute=(%2f|\/)avatar-overlay/i.test(url)) return false;
+    return url.startsWith("app://");
+  },
+  verification: {
+    // The root landmark is the only blocking check: it doubles as the
+    // "app finished booting" signal and the minimal app fingerprint. Everything
+    // else warns — the sidebar collapses, and CSS is inert on absent nodes.
+    rootAny: ["main.main-surface"],
+    recommended: [
+      { name: "sidebar", any: ["aside.app-shell-left-panel"] },
+      { name: "composer", any: [".composer-surface-chrome"] },
+    ],
+  },
+};
+
+export default codex;

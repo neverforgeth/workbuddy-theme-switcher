@@ -1,0 +1,10 @@
+{
+  "id": "sky-breeze",
+  "name": "晴空海风",
+  "version": "1.0.0",
+  "description": "明亮蓝天、夏日海风与二次元阳台风景主题",
+  "themePackage": "workbuddy-sky-breeze.codedrobe-theme",
+  "background": "assets/sky-breeze-background.png",
+  "verifiedWorkBuddyVersion": "5.2.6",
+  "themeId": "workbuddy-sky-breeze"
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WorkBuddy 主题切换器",
+  "version": "1.0.0",
+  "identifier": "com.local.workbuddy-theme-switcher",
+  "build": {
+    "beforeDevCommand": "npm run vite:dev",
+    "beforeBuildCommand": "npm run vite:build",
+    "devUrl": "http://127.0.0.1:1432",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "WorkBuddy 主题切换器",
+        "visible": false,
+        "width": 1120,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 660
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$RESOURCE/themes/**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "nsis",
+    "publisher": "WorkBuddy Theme Switcher",
+    "shortDescription": "本地 WorkBuddy 固定主题切换器",
+    "longDescription": "内置四套经验证的 WorkBuddy CodeDrobe 固定主题，可应用、验证和恢复原版。",
+    "resources": {
+      "../themes": "themes",
+      "../themes.json": "themes.json",
+      "../vendor/codedrobe": "codedrobe",
+      "../vendor/node": "node"
+    },
+    "icon": ["icons/icon.ico"],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller",
+        "silent": true
+      }
+    }
+  }
+}

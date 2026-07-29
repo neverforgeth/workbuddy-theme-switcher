@@ -1,0 +1,109 @@
+import { launchApp } from "./launcher.mjs";
+import { applyTheme, describeMissingRequirements, describeTarget, removeTheme } from "./injector.mjs";
+import { prepareHostSettings, publicHostSettingsResult, restoreHostSettings } from "./host-settings.mjs";
+
+function describeVerifyFailure(item) {
+  const reasons = [];
+  const missingDetail = describeMissingRequirements(item.result?.missing ?? []);
+  if (missingDetail) reasons.push(missingDetail);
+  if (item.result?.horizontalOverflow) reasons.push("horizontal overflow (theme widens the layout past the viewport)");
+  if (item.result && !item.result.stylePresent) reasons.push("theme stylesheet missing");
+  if (item.result && !item.result.installed) reasons.push("theme runtime not installed");
+  return `${describeTarget(item)} → ${reasons.join("; ") || "unknown verification failure"}`;
+}
+
+function verificationError(results) {
+  const failures = results.filter((item) => item.result?.pass === false);
+  const missing = failures.flatMap((item) => item.result?.missing ?? []);
+  const detail = failures.map(describeVerifyFailure).join(" ‖ ");
+  const error = new Error(`Theme application verification failed for ${failures.length} renderer target(s)${detail ? `: ${detail}` : "."}`);
+  error.code = "CODEDROBE_VERIFY_FAILED";
+  error.missing = missing;
+  error.results = results;
+  return error;
+}
+
+function restartRequiredError(adapter, port) {
+  const error = new Error(`${adapter.displayName} is already running, but its host appearance settings changed. Close it or pass --restart-existing so the complete skin can load.`);
+  error.code = "CODEDROBE_RESTART_REQUIRED";
+  error.appId = adapter.id;
+  error.port = port;
+  return error;
+}
+
+export async function applySkin({
+  adapter,
+  targetTheme,
+  port = adapter.defaultPort,
+  launch = true,
+  appPath = null,
+  profilePath = null,
+  restartExisting = false,
+  timeoutMs = 30000,
+  hostOptions = {},
+} = {}) {
+  const hostTransaction = await prepareHostSettings({ adapter, targetTheme, options: hostOptions });
+  let rendererMutated = false;
+  // Hosts that force an ephemeral debug port surface the real port through
+  // the launch result, so injection must follow it rather than the request.
+  let activePort = port;
+  try {
+    const launchResult = launch
+      ? await launchApp({ adapter, port, appPath, profilePath, restartExisting, timeoutMs })
+      : null;
+    if (launchResult?.port) activePort = launchResult.port;
+    if (hostTransaction.restartRequired && launchResult?.alreadyReady) {
+      throw restartRequiredError(adapter, activePort);
+    }
+    const targets = await applyTheme({ adapter, targetTheme, port: activePort, timeoutMs });
+    rendererMutated = true;
+    if (targets.some((item) => item.result?.pass === false)) throw verificationError(targets);
+    return {
+      action: "apply",
+      appId: adapter.id,
+      port: activePort,
+      theme: targetTheme.theme,
+      launch: launchResult,
+      host: publicHostSettingsResult(adapter, hostTransaction),
+      targets,
+    };
+  } catch (error) {
+    if (rendererMutated || error.rendererMutated) {
+      try {
+        error.rendererRollback = await removeTheme({
+          adapter,
+          port: activePort,
+          timeoutMs: Math.min(timeoutMs, 3000),
+        });
+      } catch (rendererRollbackError) {
+        error.rendererRollbackError = rendererRollbackError;
+      }
+    }
+    try {
+      await hostTransaction.rollback();
+    } catch (rollbackError) {
+      error.rollbackError = rollbackError;
+    }
+    throw error;
+  }
+}
+
+export async function restoreSkin({
+  adapter,
+  port = adapter.defaultPort,
+  timeoutMs = 3000,
+  hostOptions = {},
+} = {}) {
+  let renderer;
+  try {
+    renderer = { restored: true, targets: await removeTheme({ adapter, port, timeoutMs }) };
+  } catch (error) {
+    renderer = {
+      restored: false,
+      code: error.code ?? null,
+      message: error.message,
+    };
+  }
+  const host = await restoreHostSettings({ adapter, options: hostOptions });
+  return { action: "restore", appId: adapter.id, port, renderer, host };
+}

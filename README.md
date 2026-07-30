@@ -84,11 +84,13 @@ npm run package:installer
 产物位于：
 
 ```text
-src-tauri\target\release\bundle\nsis\WorkBuddy 主题切换器_1.0.0_x64-setup.exe
+src-tauri\target\release\bundle\nsis\WorkBuddy 主题切换器_1.0.1_x64-setup.exe
 ```
 
-将该单个安装程序发给同事即可。安装包内置四套主题、CodeDrobe Core、Node.js
-运行时与 WebView2 离线安装组件；收件人的电脑无需预先安装开发工具。安装完成后，
+将该单个安装程序发给同事即可。安装包内置四套主题、CodeDrobe Core 与 Node.js
+运行时；收件人的电脑无需预先安装开发工具。安装包会优先复用系统已有的 WebView2。
+如果电脑缺少 WebView2，首次安装时需要联网下载微软运行时；因此 v1.0.1 是轻量联网版。
+完全离线版仍保留在 GitHub Release 的 v1.0.0。安装完成后，
 从开始菜单运行“WorkBuddy 主题切换器”，首次使用时选择本机的 `WorkBuddy.exe`。
 
 安装程序尚未进行代码签名。Windows 可能显示“未知发布者”提示；应只通过受信任的

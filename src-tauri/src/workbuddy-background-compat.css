@@ -1,0 +1,4 @@
+/* WorkBuddy 5.2.6 grid backing surfaces; appearance only, no grid geometry changes. */
+html.codedrobe-host-workbuddy .teams-container [class*="_gridViewItem_"]:has(> :is(.teams-content-wrapper,.conversation-sidebar)) {
+  background: transparent !important;
+}

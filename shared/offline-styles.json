@@ -1,0 +1,38 @@
+[
+  {
+    "id": "airy-light",
+    "version": 2,
+    "name": "清透浅色",
+    "description": "近白侧栏与浮层，输入框透景，强调色轻染图片色。",
+    "controls": {
+      "brightness": 4,
+      "blur": 0,
+      "panelOpacity": 82,
+      "accent": null
+    }
+  },
+  {
+    "id": "warm-paper",
+    "version": 2,
+    "name": "暖纸柔和",
+    "description": "暖白面板与低饱和强调色，柔化高饱和背景。",
+    "controls": {
+      "brightness": -3,
+      "blur": 0,
+      "panelOpacity": 90,
+      "accent": null
+    }
+  },
+  {
+    "id": "calm-dark",
+    "version": 2,
+    "name": "沉静深色",
+    "description": "深灰面板、清晰文字、克制高光。",
+    "controls": {
+      "brightness": -12,
+      "blur": 0,
+      "panelOpacity": 88,
+      "accent": null
+    }
+  }
+]

@@ -1,0 +1,17 @@
+html.codedrobe-host-workbuddy,html.codedrobe-host-workbuddy body,html.codedrobe-host-workbuddy #root {background:var(--fusion-backdrop)!important;color:var(--fusion-main-text)!important;}
+html.codedrobe-host-workbuddy .teams-container {isolation:isolate;background:transparent!important;--fusion-text:var(--fusion-main-text);--fusion-muted:var(--fusion-main-muted);--fusion-focus:var(--fusion-main-focus);color:var(--fusion-text)!important;}
+html.codedrobe-host-workbuddy .teams-container::before {content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--codedrobe-image-hero) var(--fusion-position)/cover no-repeat;filter:brightness(var(--fusion-brightness)) blur(var(--fusion-blur));}
+html.codedrobe-host-workbuddy .teams-container::after {content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--fusion-veil);}
+html.codedrobe-host-workbuddy .teams-container [class*='_gridViewItem_']:has(> :is(.teams-content-wrapper,.conversation-sidebar)),
+html.codedrobe-host-workbuddy :is(.teams-main-content,.main-content,.wb-home-page,.main-content--chat,.chat-container,.workbuddy-topbar,:where(#workbuddy-menubar-container),.expert-center-page,.skills-view,.connector-panel,.claw-workspace) {background:transparent!important;color:var(--fusion-text)!important;}
+html.codedrobe-host-workbuddy .workbuddy-topbar {border-color:var(--fusion-main-edge)!important;box-shadow:none!important;}
+html.codedrobe-host-workbuddy :is(.conversation-sidebar,.teams-content-wrapper,[role='dialog'],[role='menu'],[role='listbox']) :is(p,h1,h2,h3,h4,h5,h6,label,.text-primary) {color:var(--fusion-text)!important;}
+html.codedrobe-host-workbuddy :is(.conversation-sidebar,.teams-content-wrapper,[role='dialog'],[role='menu'],[role='listbox']) :is(small,.text-secondary) {color:var(--fusion-muted)!important;}
+html.codedrobe-host-workbuddy :is(button,[role='button'],[role='tab'],[role='option'],[role='menuitem'],input,textarea) {color:var(--fusion-text,var(--fusion-main-text))!important;}
+html.codedrobe-host-workbuddy :is(a,button,[role='button'],[role='tab'],input,textarea,[contenteditable='true']):focus-visible {outline:2px solid var(--fusion-focus,var(--fusion-main-focus))!important;outline-offset:2px!important;}
+html.codedrobe-host-workbuddy :is(input,textarea)::placeholder {color:var(--fusion-muted,var(--fusion-main-muted))!important;opacity:1!important;}
+html.codedrobe-host-workbuddy :is([role='dialog'],[role='menu'],[role='listbox'],[role='tooltip']) {--fusion-text:var(--fusion-dialog-text);--fusion-muted:var(--fusion-dialog-muted);--fusion-focus:var(--fusion-dialog-focus);border-radius:12px!important;}
+html.codedrobe-host-workbuddy :is([role='dialog'],[role='menu']) :is(input,textarea) {background:transparent!important;box-shadow:inset 0 0 0 1px var(--fusion-dialog-edge)!important;}
+html.codedrobe-host-workbuddy .cb-assistant-message {border-radius:18px!important;}
+html.codedrobe-host-workbuddy [id^='user-message-'] [class*='_userMessageBubble_'] {border-radius:14px!important;}
+html.codedrobe-host-workbuddy :is(.wb-home-composer__input-slot>section,.chat-container:not(.chat-container--welcome) section) {border-radius:18px!important;}

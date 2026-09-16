@@ -1,6 +1,6 @@
 [package]
 name = "workbuddy-theme-switcher"
-version = "1.0.1"
+version = "1.6.2"
 description = "A lightweight local switcher for verified WorkBuddy CodeDrobe themes"
 authors = ["WorkBuddy Theme Switcher"]
 edition = "2021"
@@ -25,7 +25,12 @@ tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-dialog = "2"
 tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
-ureq = { version = "2.12", default-features = false, features = ["json"] }
+ureq = { version = "2.12", default-features = false, features = ["json", "tls"] }
+url = "2"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+uuid = { version = "1", features = ["v4"] }
+sha2 = "0.10"
+tauri-plugin-single-instance = "2"
 
 [dev-dependencies]
 tempfile = "3"

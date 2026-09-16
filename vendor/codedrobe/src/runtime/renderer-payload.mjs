@@ -147,7 +147,7 @@ export function buildApplyExpression({ adapter, targetTheme }) {
   return `(() => {
     const host = ${host};
     const theme = ${theme};
-    const cssText = ${css};
+    let cssText = ${css};
     const imageDataUrls = ${images};
     const profileId = ${profileId};
     const profileFactory = ${profileFactory};
@@ -243,6 +243,14 @@ export function buildApplyExpression({ adapter, targetTheme }) {
     };
     rootState.hosts[host.id] = {
       cleanup, ensure, observer, interval,
+      updateCss(expectedId, nextCss) {
+        if (expectedId !== theme.id || typeof nextCss !== 'string' || nextCss.length > 500000) return false;
+        cssText = nextCss;
+        const style = document.getElementById(styleId);
+        if (style) style.textContent = cssText;
+        ensure();
+        return true;
+      },
       themeId: theme.id, version: theme.version,
       imageNames: Object.keys(imageUrls),
       profileId, verifyProfile: profileRuntime?.verify ?? null,

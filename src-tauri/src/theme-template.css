@@ -1,0 +1,32 @@
+/* WorkBuddy 5.2.6 structural adapter. Appearance only: no chat/list geometry overrides. */
+:root.codedrobe-host-workbuddy {
+  --studio-background: {{BACKGROUND}};
+  --studio-surface: {{SURFACE}};
+  --studio-strong: {{STRONG}};
+  --studio-sidebar: {{SIDEBAR}};
+  --studio-accent: {{ACCENT}};
+  --studio-on-accent: {{ON_ACCENT}};
+  --studio-accent-text: {{ACCENT_TEXT}};
+  --studio-text: {{TEXT}};
+  --studio-muted: {{MUTED}};
+  --studio-border: {{BORDER}};
+  --studio-selected: {{SELECTED}};
+  color-scheme: {{SCHEME}};
+}
+html.codedrobe-host-workbuddy, html.codedrobe-host-workbuddy body, html.codedrobe-host-workbuddy #root { background: var(--studio-background) !important; color: var(--studio-text) !important; }
+html.codedrobe-host-workbuddy .teams-container { isolation: isolate; background: transparent !important; color: var(--studio-text) !important; }
+html.codedrobe-host-workbuddy .teams-container::before { content: ''; position: fixed; inset: -30px; z-index: -1; pointer-events: none; background-image: var(--codedrobe-image-hero); background-size: cover; background-position: center; filter: brightness({{BRIGHTNESS}}) blur({{BLUR}}px); }
+html.codedrobe-host-workbuddy :is(.teams-content-wrapper,.teams-main-content,.main-content) { background: transparent !important; color: var(--studio-text) !important; }
+html.codedrobe-host-workbuddy .conversation-sidebar { background: var(--studio-sidebar) !important; color: var(--studio-text) !important; border-color: var(--studio-border) !important; }
+html.codedrobe-host-workbuddy :is(.workbuddy-topbar,:where(#workbuddy-menubar-container),.wb-home-page,.main-content--chat,.expert-center-page,.skills-view,.connector-panel,.claw-workspace) { background-color: var(--studio-surface) !important; color: var(--studio-text) !important; }
+html.codedrobe-host-workbuddy :is(.wb-home-composer__input-slot>section,.chat-container:not(.chat-container--welcome) section,[role='menu'],[role='listbox'],[role='dialog'],[role='tooltip']) { background: var(--studio-strong) !important; color: var(--studio-text) !important; border-color: var(--studio-border) !important; }
+html.codedrobe-host-workbuddy :is(button,[role='button'],[role='tab'],[role='option'],[role='menuitem']) { color: var(--studio-text) !important; border-color: var(--studio-border) !important; }
+html.codedrobe-host-workbuddy :is(button,[role='button'],[role='tab'],[role='option'],[role='menuitem']):hover,
+html.codedrobe-host-workbuddy .conversation-list-tab-button[aria-selected='true'] { background-color: var(--studio-selected) !important; color: var(--studio-text) !important; }
+html.codedrobe-host-workbuddy :is(button[type='submit'],.cb-button--primary,[class*='_iconBtnSend_'],.t-button--theme-primary,.button-primary,[data-studio-primary]) { background: var(--studio-accent) !important; color: var(--studio-on-accent) !important; }
+html.codedrobe-host-workbuddy :is([role='textbox'][contenteditable='true'],input,textarea) { background-color: var(--studio-strong) !important; color: var(--studio-text) !important; caret-color: var(--studio-accent-text) !important; }
+html.codedrobe-host-workbuddy :is(input,textarea)::placeholder { color: var(--studio-muted) !important; }
+html.codedrobe-host-workbuddy :is(a,button,input,textarea,[contenteditable='true'],[role='button'],[role='tab']):focus-visible { outline: 2px solid var(--studio-accent-text) !important; outline-offset: 2px !important; }
+html.codedrobe-host-workbuddy :is(button,[role='button']):disabled { opacity: .6; cursor: not-allowed; }
+html.codedrobe-host-workbuddy [id^='user-message-'] [class*='_userMessageBubble_'],html.codedrobe-host-workbuddy .cb-assistant-message { background-color: var(--studio-surface) !important; color: var(--studio-text) !important; border-color: var(--studio-border) !important; }
+html.codedrobe-host-workbuddy :is(.conversation-sidebar small,.wb-home-page small,.cb-assistant-message small) { color: var(--studio-muted) !important; }

@@ -5,7 +5,7 @@
     "description": "\u7c89\u767d\u67d4\u548c\u98ce\u683c\uff0c\u56fa\u5b9a\u674e\u4f73\u4f73\u80cc\u666f\u3002",
     "packagePath": "themes/pink-lijiajia/theme.codedrobe-theme",
     "previewPath": "themes/pink-lijiajia/preview-safe.png",
-    "verifiedWorkBuddyVersion": "5.2.6",
+    "verifiedWorkBuddyVersion": "5.2.6–5.3.x（运行时验证）",
     "themeVersion": "1.1.4",
     "runtimeThemeId": "workbuddy-pink-lijiajia"
   },
@@ -15,7 +15,7 @@
     "description": "\u6d45\u51b0\u84dd\u3001\u96fe\u84dd\u548c\u94f6\u767d\u98ce\u666f\u4e3b\u9898\u3002",
     "packagePath": "themes/ice-blue/theme.codedrobe-theme",
     "previewPath": "themes/ice-blue/preview-safe.png",
-    "verifiedWorkBuddyVersion": "5.2.6",
+    "verifiedWorkBuddyVersion": "5.2.6–5.3.x（运行时验证）",
     "themeVersion": "1.0.4",
     "runtimeThemeId": "workbuddy-ice-blue"
   },
@@ -25,7 +25,7 @@
     "description": "\u6708\u767d\u3001\u96fe\u9752\u4e0e\u9edb\u84dd\u7684\u4e1c\u65b9\u5c71\u6c34\u4e3b\u9898\u3002",
     "packagePath": "themes/oriental-landscape/theme.codedrobe-theme",
     "previewPath": "themes/oriental-landscape/preview-safe.png",
-    "verifiedWorkBuddyVersion": "5.2.6",
+    "verifiedWorkBuddyVersion": "5.2.6–5.3.x（运行时验证）",
     "themeVersion": "1.0.2",
     "runtimeThemeId": "workbuddy-oriental"
   },
@@ -35,7 +35,7 @@
     "description": "\u660e\u4eae\u84dd\u5929\u3001\u590f\u65e5\u6d77\u98ce\u4e0e\u4e8c\u6b21\u5143\u9633\u53f0\u98ce\u666f\u4e3b\u9898\u3002",
     "packagePath": "themes/sky-breeze/theme.codedrobe-theme",
     "previewPath": "themes/sky-breeze/preview-safe.png",
-    "verifiedWorkBuddyVersion": "5.2.6",
+    "verifiedWorkBuddyVersion": "5.2.6–5.3.x（运行时验证）",
     "themeVersion": "1.0.0",
     "runtimeThemeId": "workbuddy-sky-breeze"
   }

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "airy-light",
+    "version": 1,
+    "name": "清透浅色",
+    "description": "旧版风格，保留原有效果。",
+    "controls": {
+      "brightness": 4,
+      "blur": 2,
+      "panelOpacity": 82,
+      "accent": null
+    }
+  },
+  {
+    "id": "warm-paper",
+    "version": 1,
+    "name": "暖纸柔和",
+    "description": "旧版风格，保留原有效果。",
+    "controls": {
+      "brightness": -3,
+      "blur": 6,
+      "panelOpacity": 90,
+      "accent": null
+    }
+  },
+  {
+    "id": "calm-dark",
+    "version": 1,
+    "name": "沉静深色",
+    "description": "旧版风格，保留原有效果。",
+    "controls": {
+      "brightness": -12,
+      "blur": 2,
+      "panelOpacity": 88,
+      "accent": null
+    }
+  }
+]

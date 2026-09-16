@@ -4,5 +4,9 @@ src-tauri/target/
 src-tauri/gen/
 .runtime/
 logs/
+.qa/
+test-results/
+playwright-report/
+delivery/
 themes.json.backup-*
 themes/**/*.backup-*

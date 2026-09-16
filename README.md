@@ -1,97 +1,103 @@
-# WorkBuddy 主题切换器
+# WorkBuddy 主题工作台 1.6.2（图片融合候选版）
 
-一个只负责选择、应用和恢复固定 CodeDrobe 主题的本地 Tauri 桌面应用。它不修改 `WorkBuddy.exe`、`resources/app.asar`、模型配置或用户数据。
+纯离线图片主题编辑器，沿用 Tauri、React 和 CodeDrobe。流程：**上传图片 → 本地推荐风格 → 开始真实预览 → 微调 → 保存或保留应用**。不生成或美化原图，不接入 AI，不改变 WorkBuddy 的功能布局。
 
-## 内置主题
+1.6.2 新图片采用风格 v2：默认零模糊、连续主画布、透明输入内层、18px 助手消息、图片衍生的分层配色。旧主题继续使用旧规则，主动“创建新版融合副本”才升级。当前为候选版，未进行本轮实机换肤及截图验收，不自动安装或重启 WorkBuddy。详见 [1.6.2 验证说明](docs/1.6.2-validation.md)；历史记录见 [1.6.1](docs/1.6.1-validation.md) 和 [1.6.0](docs/1.6.0-validation.md)。
 
-- `Pink · 李佳佳版`
-- `Ice Blue · 冰蓝风景版`
-- `山高水长 · 东方黛青版`
-- `晴空海风 · 夏日天空版`
+## 使用
 
-主题清单在 `themes.json`。新增主题时，复制一个 `themes/<id>/` 目录并在该清单增加一条记录即可；前端与 Rust 切换逻辑不需要修改。
+1. 上传 JPG、PNG 或 WebP：不超过 10MB，至少 64×64，最多 4000 万像素。真实解码、格式匹配和尺寸校验由后端执行。
+2. 导入时推荐“清透浅色 / 暖纸柔和 / 沉静深色”之一。推荐只运行一次；普通滑块调整不切换风格。
+3. 左侧调整亮度、背景模糊、面板不透明度、强调色。“高级调整”默认折叠，提供背景定位、九区精调及恢复风格默认值。
+4. 切换风格保留图片、名称和背景位置，其他参数恢复该风格默认值。有手动调整或从旧文档升级时先确认。
+5. 点击底部“开始真实预览”并确认，临时应用到 WorkBuddy，进入 10 分钟可回退试用。上传图片本身不会改变 WorkBuddy。
+6. 试用期间微调同步实机；可手动续期。“保存主题”只保存，“保存并保留”提交正式选择，“恢复之前效果”结束试用。
+7. 超时、离开编辑器或关闭窗口会恢复；断连显示待恢复，崩溃后下次启动优先处理恢复记录。
 
-每个主题目录只包含可分发资源：
+真实预览读取当前 WorkBuddy 内容区，可能包含私人内容，仅留本机。不会替用户切换聊天、输入或打开菜单。需要重启时另行确认，不自动强制关闭。
 
-```text
-themes/<id>/
-├─ theme.codedrobe-theme
-├─ preview-safe.png
-└─ preset.json
-```
+画面明确区分“参数同步中 / 画面待刷新 / 当前真实效果”。旧图不能标为最新，也不能作为当前图导出。可设置对比基准、适应宽度、100% 查看及主动导出 PNG。保持 WorkBuddy 不最小化；遮挡时仅在取图期间临时允许 renderer 绘制，不抢原生窗口焦点。失败后停止显示“正在获取”，可手动刷新。
 
-预览图仅使用固定背景资源，不包含聊天、项目或会话列表内容。
+折叠的辅助样板和主题库预览是**仿真，不是实机截图**。样板保留固定结构，与应用使用同一份生成 CSS；禁止脚本和外部网络。
 
-## 本机运行
+## 完全离线与隐私
 
-开发构建需要 Windows、Node.js、Rust/Tauri 构建环境。发布安装包本身不要求
-收件人安装 Node.js、Rust、Tauri 或 CodeDrobe Core。
+- 已删除 AI 表单、审核弹窗、请求实现和对应 Tauri 命令；不再配置模型、上传图片或读取 Windows 中的旧 API Key。
+- “设置与诊断 → 清除旧 AI 凭据”必须单独确认，只删除精确凭据项 `WorkBuddyThemeSwitcher:CustomThemeAiKey`；不枚举、读取其他凭据。该删除不可恢复。
+- 旧状态文件中的普通 AI 设置仅作为兼容字段保留，不再使用。
+- 截图不写入日志或主题包，只有用户主动选择导出位置才落盘。发布版不包含实机自动验收入口。
+- 移除了全 DOM 上传遮挡扫描；截图只采集受限区域几何、视口及不含内容的变化序号，用于一致性检查。
+- 主窗口 CSP 仅允许本地资源、必要的 Tauri 通信及隔离样板；业务不请求外网。本机 CDP 使用环回地址，禁用代理与 HTTP 重定向。
+- 图片后台任务保留超时、取消与提交前校验。当前解码步骤安全结束后才响应取消。
 
-已审计的本地 CodeDrobe Core 快照和专用 Node.js 运行时位于 `vendor/`，会分别
-打入应用资源目录的 `codedrobe/` 与 `node/`。运行时只使用这两份内置资源，不会
-依赖开发机的 `D:\view\core` 或系统 PATH。
+## 离线风格与编译
+
+`shared/offline-styles.json` 是前后端共用的风格 v2 默认参数，三套风格默认模糊均为 0。`shared/offline-styles-v1.json` 冻结旧参数。文档仍为 schema 3；新文档保存风格/分析版本 2、候选色、16×16 固定采样、明暗变化统计和手动覆盖。普通微调不重新分析图片或重新推荐风格。
+
+`theme_compiler.rs` 分派固定版本的编译与编辑意图；`theme_fusion.rs` 负责 v2 的配色、分层校验和受限样式生成。`theme-fusion.css` / `theme-fusion-inner.css` 明确外层底色、内层透明的覆盖顺序。前端一次提交完整编辑意图，使用一个草稿序号和一个原子文件替换提交；失败保留输入并允许重试。
+
+背景是单张清晰图片及连续同色系遮罩，不自动模糊，也不为消息或按钮使用模糊。各区域保留独立不透明度，滑块显示相对当前风格的调整百分点。按背景→画布→消息/输入框计算叠色；正文及辅助文字目标 4.5:1，聚焦指示目标 3:1，装饰边框不强制加深。实际值与修正原因可查看；裁切、未采样纹理和动态状态标为“未验证”。
+
+缓存后的微调不重新解码图片。参数提交、实机样式同步和截图是独立阶段；截图最多每秒一次，无操作时不持续截图。
+
+## 数据兼容与恢复
+
+数据位于 `%LOCALAPPDATA%\WorkBuddyThemeSwitcher`：
+
+- `studio/assets/<id>/`：应用自有原图、受控 JPEG 背景与缩略图；移动或删除导入源不影响主题。
+- `studio/drafts/`、`studio/last-draft.json`：草稿与最近编辑入口。
+- `studio/library/<id>/rN/`：不可变文档与主题包，`head.json` 为发布提交点。
+- `studio/save-transactions/`：中断保存的恢复记录。
+- `studio/trial.json`：未完成试用的原主题和自动保持恢复记录。
+- `studio/trash/`、`studio/recovery-archive/`：回收的主题和人工处理的异常记录。
+- `custom-themes/`：更早版本主题原包。
+- `state.json`：路径、固定主题 ID＋修订和自动保持状态；`logs/` 只记录操作元数据。
+
+旧 schema 1/2 的 advice、九区设计及已编译 CSS 保留。读取、打开或直接应用旧修订不重新编译；普通编辑仍走原版本编译路径，只有主动采用新风格才转为 v3 草稿并保存新修订。内置主题只读。无编辑参数的早期包通过图片创建副本，原包不变。
+
+风格 v1 不会原地转换为 v2。“创建新版融合副本”使用新草稿 ID、保留图片/名称/背景位置/手动强调色，重新生成分区参数、模糊归零；不创建正式主题也不应用。原稿与旧修订字节不变；发布失败或取消保留原最近草稿入口。新副本沿用已有保存、试用与回退流程。
+
+1.6.0 的 v3.1 草稿在读取时一次性升级为 v3.2 背景兼容样式，保留图片、颜色和调整参数，序号递增并标记待保存。旧的正式修订和主题包不变；重新打开旧修订得到修复后的可编辑草稿，需重新预览并保存新修订。
+
+已应用的修订不会因另存新版被自动保持替换。应用与恢复互斥，试用期间暂停普通自动保持。当前使用或回退所依赖的主题不能删除，未知外部换肤不能被悄悄覆盖。
+
+## 模块边界
+
+| 模块 | 职责 |
+| --- | --- |
+| `theme_compiler.rs`、`shared/offline-styles.json` | 离线分析、固定风格、完整编辑意图、v3 配色与编译 |
+| `theme_fusion.rs`、`theme-fusion*.css` | 风格 v2 的分层配色、对比度修正及真实组件样式所有权 |
+| `theme_engine.rs`、`theme-template.css`、`region_theme.rs` | 图片解码、安全基础样式、兼容旧编译路径与九区模型 |
+| `theme_model.rs` | 旧配色数据类型，不含网络或凭据逻辑 |
+| `theme_library.rs` | 资源、草稿、不可变修订、原子发布与回收 |
+| `workbuddy_session.rs`、`live_preview.rs` | 运行快照、试用、回退、环回 CDP 与截图一致性 |
+| `lib.rs` | 既有 Windows/CodeDrobe 适配、路径发现、精确凭据清理、自动保持 |
+| `use-theme-editor.ts`、`studio-api.ts` | 单队列原子提交、迟到响应隔离与输入重基 |
+| `RealPreviewPanel.tsx`、`WorkBuddyThemePreview.tsx` | 主真实预览与辅助隔离样板 |
+
+运行态集中探测约 2.5 秒一次，前端事件为主、10 秒轮询补充。保留原有单实例与应用锁；未重写连接系统。
+
+参考其他项目的组件约束、背景/面板分层及验证理念；本轮没有复制其他项目的品牌、人物或装饰素材，也没有增加市场、同步和主题包导入。
+
+## 开发与验证
+
+Windows、Node.js、Rust/MSVC 和 Tauri 构建环境。安装包携带既有 Node/CodeDrobe 运行资源。
 
 ```powershell
-cd D:\view\workbuddy-theme-switcher
-npm install
-npm run dev
-```
-
-开发版本会检测以下 WorkBuddy 路径：已保存路径、`D:\workbuddy\WorkBuddy.exe`、常见 LocalAppData 与 Program Files 目录。找不到时可在界面中选择 `WorkBuddy.exe`；应用会验证同级 `resources\app.asar`。
-
-## 应用流程
-
-1. 检测 WorkBuddy 进程、版本、CDP 和 renderer。
-2. 已连接 CDP 时，将主题交给本地 CodeDrobe 直接应用并 verify。
-3. 未运行时，CodeDrobe 使用 `127.0.0.1:9336` 启动 WorkBuddy，并清理子进程中的 `ELECTRON_RUN_AS_NODE`、设置 `WORKBUDDY_REMOTE_DEBUGGING_PORT`。
-4. 正在运行但没有 CDP 时，界面必须由用户确认后才会重启。
-5. 应用后再验证主题 ID、布局验证结果和 `#codedrobe-theme-style-workbuddy` 节点数量（必须为 1）。失败时自动 restore。
-
-切换主题时直接 apply 新主题。CodeDrobe 会先清理同一 host 的旧状态，再复用固定 style ID，因此不会叠加两个主题。
-
-## 恢复原版
-
-“恢复 WorkBuddy 原版”调用本地 CodeDrobe restore，并通过 CDP 检查主题节点数量为 0。重复恢复是安全的，不会删除主题包、图片或 WorkBuddy 用户数据。
-
-## 日志与隐私
-
-开发日志位于 `logs/`；正式构建位于 `%LOCALAPPDATA%\WorkBuddyThemeSwitcher\logs`。日志仅记录时间、WorkBuddy 路径和版本、主题 ID、apply/verify/restore 结果及错误代码。
-
-日志不会记录聊天正文、DOM 正文、Token、Cookie、API Key、完整 CSS、背景图片二进制或 CDP 报文。
-
-## 检查与构建
-
-```powershell
-npm run test:rust
+npm ci
 npm run typecheck
 npm run lint
-npm run vite:build
-npm run build
-```
-
-Debug EXE 输出为：
-
-```text
-src-tauri\target\debug\workbuddy-theme-switcher.exe
-```
-
-## 发给同事的一键安装包
-
-```powershell
+npm test
+npm run test:rust
+$env:STUDIO_QA_FIXTURES = Join-Path (Get-Location) '.qa/engine-fixtures.json'
+npm run test:rust -- --lib export_real_engine_visual_fixtures
+$env:NO_PROXY = '127.0.0.1,localhost'
+npm run test:e2e
 npm run package:installer
 ```
 
-产物位于：
+浏览器验收仅操作合成页面和脱敏样板，不连接 WorkBuddy。实机调试工具与 `STUDIO_RUN_QA` 流程必须另获授权，不应直接运行在未保存工作的实例上。
 
-```text
-src-tauri\target\release\bundle\nsis\WorkBuddy 主题切换器_1.0.1_x64-setup.exe
-```
+默认构建输出 `src-tauri/target/release/bundle/nsis/WorkBuddy 主题切换器_1.6.0_x64-setup.exe`；设置了 `CARGO_TARGET_DIR` 时以该目录为准。交付包另外标记为候选版。
 
-将该单个安装程序发给同事即可。安装包内置四套主题、CodeDrobe Core 与 Node.js
-运行时；收件人的电脑无需预先安装开发工具。安装包会优先复用系统已有的 WebView2。
-如果电脑缺少 WebView2，首次安装时需要联网下载微软运行时；因此 v1.0.1 是轻量联网版。
-完全离线版仍保留在 GitHub Release 的 v1.0.0。安装完成后，
-从开始菜单运行“WorkBuddy 主题切换器”，首次使用时选择本机的 `WorkBuddy.exe`。
-
-安装程序尚未进行代码签名。Windows 可能显示“未知发布者”提示；应只通过受信任的
-内部渠道分发，并在正式对外发布前配置企业代码签名证书。
+本轮适配结构针对 WorkBuddy 5.2.6，不承诺全部 5.3.x。候选版实机验收清单和性能测量边界见验证说明。

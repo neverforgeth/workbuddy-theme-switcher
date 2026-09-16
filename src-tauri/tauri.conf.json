@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "WorkBuddy 主题切换器",
-  "version": "1.0.1",
+  "version": "1.6.2",
   "identifier": "com.local.workbuddy-theme-switcher",
   "build": {
     "beforeDevCommand": "npm run vite:dev",
@@ -12,19 +12,23 @@
   "app": {
     "windows": [
       {
-        "title": "WorkBuddy 主题切换器",
+        "title": "WorkBuddy 主题工作台 1.6.2 候选版（实机待验收）",
         "visible": false,
-        "width": 1120,
+        "width": 1200,
         "height": 820,
         "minWidth": 900,
         "minHeight": 660
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'none'",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$RESOURCE/themes/**"]
+        "scope": [
+          "$RESOURCE/themes/**",
+          "$LOCALDATA/WorkBuddyThemeSwitcher/custom-themes/**",
+          "$LOCALDATA/WorkBuddyThemeSwitcher/studio/**"
+        ]
       }
     }
   },
@@ -32,8 +36,8 @@
     "active": true,
     "targets": "nsis",
     "publisher": "WorkBuddy Theme Switcher",
-    "shortDescription": "本地 WorkBuddy 固定主题切换器",
-    "longDescription": "内置四套经验证的 WorkBuddy CodeDrobe 固定主题，可应用、验证和恢复原版。",
+    "shortDescription": "本地 WorkBuddy 主题与图片自定义主题切换器",
+    "longDescription": "内置主题与图片驱动的自定义主题均可安全应用、验证、自动保持并恢复 WorkBuddy 原版。",
     "resources": {
       "../themes": "themes",
       "../themes.json": "themes.json",

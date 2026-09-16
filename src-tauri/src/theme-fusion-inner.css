@@ -1,0 +1,17 @@
+/* Inner surfaces never paint the same alpha a second time. These are local, known nodes. */
+html.codedrobe-host-workbuddy .conversation-sidebar :is(button,.conversation-agent-card,[role='button']) {border-radius:10px!important;}
+html.codedrobe-host-workbuddy :is(.cb-button--primary,.t-button--theme-primary,.button-primary,[data-studio-primary]) {border-radius:8px!important;}
+html.codedrobe-host-workbuddy :is(.wb-home-composer__input-slot>section,.chat-container:not(.chat-container--welcome) section) :is([class*='_iconBtnSend_'],[class*='_icon_'][class*='_large_']) {border-radius:50%!important;}
+html.codedrobe-host-workbuddy :is(.wb-home-composer__input-slot>section,.chat-container:not(.chat-container--welcome) section) :is([class*='_mainArea_'],[class*='_inputArea_'],[class*='_toolbar_'],[class*='_bottomBar_'],.composer-tools,[role='textbox'][contenteditable='true'],textarea) {background:transparent!important;box-shadow:none!important;border-color:transparent!important;color:var(--fusion-composer-text)!important;caret-color:var(--fusion-composer-focus)!important;}
+html.codedrobe-host-workbuddy :is(.wb-home-composer__input-slot>section,.chat-container:not(.chat-container--welcome) section):focus-within {box-shadow:inset 0 0 0 2px var(--fusion-composer-focus)!important;}
+html.codedrobe-host-workbuddy :is(.wb-home-composer__input-slot>section,.chat-container:not(.chat-container--welcome) section) :is([role='textbox'][contenteditable='true'],textarea):focus-visible {outline:none!important;}
+html.codedrobe-host-workbuddy :is(.wb-home-composer__input-slot>section,.chat-container:not(.chat-container--welcome) section) :is([data-placeholder]:empty)::before {color:var(--fusion-composer-muted)!important;opacity:1!important;}
+html.codedrobe-host-workbuddy .cb-assistant-message .cb-markdown {background:transparent!important;color:var(--fusion-assistant-text)!important;box-shadow:none!important;border-color:transparent!important;}
+html.codedrobe-host-workbuddy .cb-assistant-message .cb-markdown :is(p,ul,ol,li) {background:transparent!important;color:inherit!important;}
+html.codedrobe-host-workbuddy .cb-markdown :is(table,pre,blockquote) {background:var(--fusion-detail-bg)!important;color:var(--fusion-assistant-text)!important;border-color:var(--fusion-assistant-edge)!important;box-shadow:inset 0 0 0 1px var(--fusion-assistant-edge)!important;}
+html.codedrobe-host-workbuddy .cb-markdown :is(th,td) {background:transparent!important;color:inherit!important;border-color:var(--fusion-assistant-edge)!important;}
+html.codedrobe-host-workbuddy .cb-markdown code {background:var(--fusion-detail-bg)!important;color:var(--fusion-assistant-text)!important;}
+html.codedrobe-host-workbuddy .cb-markdown pre code {background:transparent!important;box-shadow:none!important;}
+html.codedrobe-host-workbuddy .cb-markdown a {color:var(--fusion-assistant-text)!important;text-decoration:underline;}
+html.codedrobe-host-workbuddy .conversation-sidebar :is(.conversation-list,.conversation-sidebar-footer,[class*='_group_'],[class*='_footer_']) {background:transparent!important;color:var(--fusion-sidebar-text)!important;}
+html.codedrobe-host-workbuddy .conversation-sidebar :is(button,.conversation-agent-card,[role='button']):not(:hover):not([aria-selected='true']):not([aria-current='page']):not([class*='_selected_']):not(.active) {background:transparent!important;color:var(--fusion-sidebar-text)!important;box-shadow:none!important;}

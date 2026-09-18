@@ -84,8 +84,11 @@ export function sameTheme(key: string | null | undefined, reference: ThemeRef) {
   return key?.split("@")[0] === reference.id;
 }
 export function errorText(error: unknown) {
-  if (error && typeof error === "object" && "message" in error)
-    return String(error.message);
+  if (error && typeof error === "object" && "message" in error) {
+    const code = "code" in error && typeof error.code === "string" && /^[A-Z][A-Z0-9_]{1,63}$/.test(error.code)
+      ? `（${error.code}）` : "";
+    return String(error.message) + code;
+  }
   return typeof error === "string" ? error : "操作未完成，请重试。";
 }
 export function fileBase64(file: File): Promise<string> {

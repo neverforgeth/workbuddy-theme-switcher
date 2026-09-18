@@ -1,6 +1,6 @@
 [package]
 name = "workbuddy-theme-switcher"
-version = "1.6.2"
+version = "1.6.3"
 description = "A lightweight local switcher for verified WorkBuddy CodeDrobe themes"
 authors = ["WorkBuddy Theme Switcher"]
 edition = "2021"

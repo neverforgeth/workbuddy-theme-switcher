@@ -36,8 +36,9 @@ export async function waitForTargets(adapter, port, timeoutMs = 30000) {
 async function withSessions(targets, callback, sessionTimeoutMs = 10000) {
   const results = [];
   for (const target of targets) {
-    const session = await new CdpSession(target, sessionTimeoutMs).open();
+    const session = new CdpSession(target, sessionTimeoutMs);
     try {
+      await session.open();
       results.push({ targetId: target.id, title: target.title, url: target.url, result: await callback(session, target) });
     } finally {
       session.close();
@@ -84,28 +85,59 @@ function ensureCompatible(adapter, results) {
  * full boot budget; once the skeleton exists, a genuine selector mismatch
  * fails after the shorter settle budget instead of stalling the caller.
  */
-async function waitForCompatibility(session, expression, settleTimeoutMs = 5000, bootTimeoutMs = settleTimeoutMs) {
+async function waitForCompatibility(session, expression, settleTimeoutMs = 5000, bootTimeoutMs = settleTimeoutMs, secondaryDeadline = () => Infinity) {
   const start = Date.now();
   let structuredAt = null;
   let result;
+  let lastError;
   do {
     try {
       result = await session.evaluate(expression);
-    } catch {
+      lastError = null;
+    } catch (error) {
       // Boot-time navigations tear down the execution context mid-evaluate;
       // treat it like a page that has not rendered yet and retry.
       result = undefined;
+      lastError = error;
     }
     if (result?.compatible) return result;
     const now = Date.now();
     const hasRoot = Boolean(result?.rootMatches?.length);
     if (hasRoot && structuredAt === null) structuredAt = now;
-    const deadline = hasRoot
+    const ownDeadline = hasRoot
       ? Math.min(start + bootTimeoutMs, structuredAt + settleTimeoutMs)
       : start + bootTimeoutMs;
-    if (now >= deadline) return result;
+    const deadline = Math.min(ownDeadline, secondaryDeadline());
+    if (now >= deadline) {
+      if (lastError) throw lastError;
+      return result;
+    }
     await delay(250);
   } while (true);
+}
+
+// Read-only preflight is concurrent: an empty overlay must not spend another
+// full boot timeout after a primary window has already passed. Never suppress
+// injection/verification failures here, and never succeed with zero primaries.
+async function preflightTargets(targets, expression, settleMs, bootMs) {
+  let primaryAt = null;
+  const results = await Promise.all(targets.map(async (target) => {
+    const session = new CdpSession(target, Math.min(5000, bootMs));
+    const metadata = { targetId: target.id, title: target.title, url: target.url };
+    try {
+      await session.open();
+      const result = await waitForCompatibility(session, expression, settleMs, bootMs,
+        () => primaryAt === null ? Infinity : primaryAt + 750);
+      if (result?.compatible && primaryAt === null) primaryAt = Date.now();
+      return { ...metadata, result: result ?? { compatible: false, missing: [] } };
+    } catch (error) {
+      return { ...metadata, error, result: { compatible: false, missing: [] } };
+    } finally { session.close(); }
+  }));
+  if (!results.some(item => item.result?.compatible) && results.every(item => item.error)) {
+    throw results[0].error;
+  }
+  return results.map(({ error, ...item }) => ({ ...item, ...(error ? { connectionFailed: true } : {}) }));
 }
 
 /**
@@ -123,7 +155,7 @@ export function markSecondaryTargets(results, isPrimary) {
 export async function probeApp({ adapter, targetTheme = null, port, timeoutMs = 5000 }) {
   const targets = await waitForTargets(adapter, port, timeoutMs);
   const expression = buildProbeExpression(adapter, targetTheme?.verification ?? null);
-  const results = await withSessions(targets, (session) => waitForCompatibility(session, expression, Math.min(timeoutMs, 5000)));
+  const results = await preflightTargets(targets, expression, Math.min(timeoutMs, 5000), Math.min(timeoutMs, 10000));
   return markSecondaryTargets(results, (item) => item.result?.compatible === true);
 }
 
@@ -146,11 +178,8 @@ export async function applyTheme({ adapter, targetTheme, port, timeoutMs = 30000
   // A splash/loading screen may keep the DOM empty for a long while after the
   // CDP target exists, so booting pages get the full apply budget while
   // rendered-but-mismatched pages still fail within the settle budget.
-  const preflight = await withSessions(
-    targets,
-    (session) => waitForCompatibility(session, preflightExpression, Math.min(timeoutMs, 10000), timeoutMs),
-    Math.max(10000, timeoutMs),
-  );
+  const preflight = await preflightTargets(targets, preflightExpression,
+    Math.min(timeoutMs, 10000), Math.min(timeoutMs, 15000));
   // Secondary windows (popped-out chats, floating panels) legitimately lack
   // parts of the main-window DOM. Theme every compatible target and report the
   // rest as skipped instead of refusing the whole apply.
@@ -186,12 +215,21 @@ export async function applyTheme({ adapter, targetTheme, port, timeoutMs = 30000
 
 export async function verifyTheme({ adapter, targetTheme, port, timeoutMs = 30000 }) {
   const targets = await waitForTargets(adapter, port, timeoutMs);
-  const results = await withSessions(targets, (session) => session.evaluate(buildVerifyExpression(
+  const expression = buildVerifyExpression(
     adapter,
     targetTheme?.theme ?? null,
     targetTheme?.verification ?? null,
     targetTheme,
-  )));
+  );
+  // A target can disappear between apply and the desktop host's final verify.
+  // Retain failing installed/compatible windows; only absent secondary surfaces
+  // are skippable once another real primary has responded.
+  const inspected = await Promise.all(targets.map(async target => {
+    try { return (await withSessions([target], session => session.evaluate(expression), Math.min(timeoutMs, 5000)))[0]; }
+    catch (error) { return { targetId: target.id, error, result: { compatible: false, pass: false } }; }
+  }));
+  if (inspected.every(item => item.error)) throw inspected[0].error;
+  const results = inspected.map(({ error, ...item }) => ({ ...item, ...(error ? { connectionFailed: true } : {}) }));
   // A themed window must still verify even if its landmarks broke after apply,
   // so installed targets stay primary alongside compatible ones.
   return markSecondaryTargets(results, (item) => item.result?.compatible === true || item.result?.installed === true);

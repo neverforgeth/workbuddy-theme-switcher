@@ -321,8 +321,15 @@ async function runDetect(options) {
 }
 
 async function loadTargetTheme(themeFilename, appId) {
-  const bundle = await readThemePackage(path.resolve(themeFilename));
-  return { bundle, targetTheme: resolveThemeTarget(bundle, appId) };
+  try {
+    const bundle = await readThemePackage(path.resolve(themeFilename));
+    return { bundle, targetTheme: resolveThemeTarget(bundle, appId) };
+  } catch (cause) {
+    const error = new Error("The local theme package could not be loaded.", { cause });
+    error.code = ["ENOENT", "EACCES", "EPERM", "EIO"].includes(cause.code)
+      ? "CODEDROBE_THEME_READ_FAILED" : "CODEDROBE_THEME_INVALID";
+    throw error;
+  }
 }
 
 async function runApply(options) {

@@ -1,0 +1,57 @@
+/* WorkBuddy 5.5 composer bridge. Appearance only; keep host layout and hit areas.
+   .cr-input-container owns the surface; nested editor/toolbar do not stack paint. */
+html.codedrobe-host-workbuddy .cr-input-box {
+  color: var(--cg-text) !important;
+  --cr-text-primary: var(--cg-text);
+  --cr-text-secondary: var(--cg-text-muted);
+}
+html.codedrobe-host-workbuddy .cr-input-container {
+  background: rgb(var(--wb-theme-surface-composer-rgb) / .72) !important;
+  border-color: var(--cg-border) !important;
+  border-radius: var(--cg-radius-lg) !important;
+  box-shadow: var(--cg-edge-light), var(--cg-shadow-soft) !important;
+  color: var(--cg-text) !important;
+}
+html.codedrobe-host-workbuddy .wb-home-composer__input-slot .cr-input-container {
+  background: rgb(var(--wb-theme-surface-composer-rgb) / var(--wb-theme-home-panel-alpha, .62)) !important;
+}
+html.codedrobe-host-workbuddy .cr-input-box :is(.cr-input-box__main, .cr-input-container-wrapper, .cr-input-editor-host, .cr-input-toolbar, .cr-input-toolbar__right, .cr-input-footer, [role='textbox'][contenteditable='true']) {
+  background: transparent !important;
+  color: var(--cg-text) !important;
+}
+html.codedrobe-host-workbuddy .cr-input-box [data-slate-placeholder='true'] {
+  color: var(--cg-text-muted) !important;
+}
+html.codedrobe-host-workbuddy .cr-input-container--focused,
+html.codedrobe-host-workbuddy .cr-input-container:focus-within {
+  border-color: var(--cg-border-strong) !important;
+  box-shadow: var(--cg-edge-light), 0 0 0 2px var(--cg-focus-ring) !important;
+}
+html.codedrobe-host-workbuddy .cr-input-toolbar button:not(.cr-send-button) {
+  color: var(--cg-text) !important;
+}
+html.codedrobe-host-workbuddy .cr-input-toolbar button:not(.cr-send-button):hover:not(:disabled) {
+  background: var(--cg-brand-soft) !important;
+}
+html.codedrobe-host-workbuddy .cr-send-button:not(:disabled) {
+  background: var(--cg-brand-deep) !important;
+  color: rgb(var(--wb-theme-white-rgb)) !important;
+  border-color: transparent !important;
+}
+html.codedrobe-host-workbuddy .cr-send-button:hover:not(:disabled) {
+  background: var(--cg-brand) !important;
+}
+html.codedrobe-host-workbuddy .cr-send-button:disabled {
+  background: rgb(var(--wb-theme-accent-rgb) / .26) !important;
+  color: var(--cg-text-muted) !important;
+}
+/* Native 5.5 uses an even-odd disc with a cut-out arrow/stop, not a solid arrow.
+   The disc inherits accent; its cut-out reveals the button's white background. */
+html.codedrobe-host-workbuddy .cr-send-button:not(.cr-send-button--custom):has(.cr-send-button__icon > svg > path[fill-rule='evenodd']) {
+  background: rgb(var(--wb-theme-white-rgb)) !important;
+  color: var(--cg-brand-deep) !important;
+  --cr-send-button-fill-disabled: rgb(var(--wb-theme-text-muted-rgb));
+}
+html.codedrobe-host-workbuddy .cr-send-button:not(.cr-send-button--custom):has(.cr-send-button__icon > svg > path[fill-rule='evenodd']):hover:not(:disabled) {
+  color: var(--cg-brand) !important;
+}

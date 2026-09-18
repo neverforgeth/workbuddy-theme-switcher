@@ -8,5 +8,7 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 1432,
     strictPort: true,
+    // Extracted official installers and generated QA fixtures are not app source.
+    watch: { ignored: ["**/.qa/**", "**/delivery/**", "**/src-tauri/target/**"] },
   },
 });

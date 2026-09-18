@@ -1,42 +1,42 @@
 [
   {
     "id": "pink-lijiajia",
-    "name": "Pink \u00b7 \u674e\u4f73\u4f73\u7248",
-    "description": "\u7c89\u767d\u67d4\u548c\u98ce\u683c\uff0c\u56fa\u5b9a\u674e\u4f73\u4f73\u80cc\u666f\u3002",
+    "name": "Pink · 李佳佳版",
+    "description": "粉白柔和风格，固定李佳佳背景。",
     "packagePath": "themes/pink-lijiajia/theme.codedrobe-theme",
     "previewPath": "themes/pink-lijiajia/preview-safe.png",
-    "verifiedWorkBuddyVersion": "5.2.6–5.3.x（运行时验证）",
-    "themeVersion": "1.1.4",
+    "verifiedWorkBuddyVersion": "按当前页面结构运行时检查",
+    "themeVersion": "1.1.5",
     "runtimeThemeId": "workbuddy-pink-lijiajia"
   },
   {
     "id": "ice-blue",
-    "name": "Ice Blue \u00b7 \u51b0\u84dd\u98ce\u666f\u7248",
-    "description": "\u6d45\u51b0\u84dd\u3001\u96fe\u84dd\u548c\u94f6\u767d\u98ce\u666f\u4e3b\u9898\u3002",
+    "name": "Ice Blue · 冰蓝风景版",
+    "description": "浅冰蓝、雾蓝和银白风景主题。",
     "packagePath": "themes/ice-blue/theme.codedrobe-theme",
     "previewPath": "themes/ice-blue/preview-safe.png",
-    "verifiedWorkBuddyVersion": "5.2.6–5.3.x（运行时验证）",
-    "themeVersion": "1.0.4",
+    "verifiedWorkBuddyVersion": "按当前页面结构运行时检查",
+    "themeVersion": "1.0.5",
     "runtimeThemeId": "workbuddy-ice-blue"
   },
   {
     "id": "oriental-landscape",
-    "name": "\u5c71\u9ad8\u6c34\u957f \u00b7 \u4e1c\u65b9\u9edb\u9752\u7248",
-    "description": "\u6708\u767d\u3001\u96fe\u9752\u4e0e\u9edb\u84dd\u7684\u4e1c\u65b9\u5c71\u6c34\u4e3b\u9898\u3002",
+    "name": "山高水长 · 东方黛青版",
+    "description": "月白、雾青与黛蓝的东方山水主题。",
     "packagePath": "themes/oriental-landscape/theme.codedrobe-theme",
     "previewPath": "themes/oriental-landscape/preview-safe.png",
-    "verifiedWorkBuddyVersion": "5.2.6–5.3.x（运行时验证）",
-    "themeVersion": "1.0.2",
+    "verifiedWorkBuddyVersion": "按当前页面结构运行时检查",
+    "themeVersion": "1.0.3",
     "runtimeThemeId": "workbuddy-oriental"
   },
   {
     "id": "sky-breeze",
-    "name": "\u6674\u7a7a\u6d77\u98ce \u00b7 \u590f\u65e5\u5929\u7a7a\u7248",
-    "description": "\u660e\u4eae\u84dd\u5929\u3001\u590f\u65e5\u6d77\u98ce\u4e0e\u4e8c\u6b21\u5143\u9633\u53f0\u98ce\u666f\u4e3b\u9898\u3002",
+    "name": "晴空海风 · 夏日天空版",
+    "description": "明亮蓝天、夏日海风与二次元阳台风景主题。",
     "packagePath": "themes/sky-breeze/theme.codedrobe-theme",
     "previewPath": "themes/sky-breeze/preview-safe.png",
-    "verifiedWorkBuddyVersion": "5.2.6–5.3.x（运行时验证）",
-    "themeVersion": "1.0.0",
+    "verifiedWorkBuddyVersion": "按当前页面结构运行时检查",
+    "themeVersion": "1.0.1",
     "runtimeThemeId": "workbuddy-sky-breeze"
   }
 ]

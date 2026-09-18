@@ -1,6 +1,6 @@
 {
   "name": "workbuddy-theme-switcher",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,9 @@
     "lint": "eslint .",
     "test:rust": "node scripts/run-with-cargo.mjs cargo test --manifest-path src-tauri/Cargo.toml",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:compat": "node --test tests/codedrobe-compatibility.test.mjs tests/codedrobe-cdp.test.mjs",
+    "check:builtin-compat": "node scripts/sync-builtin-compat.mjs --check"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

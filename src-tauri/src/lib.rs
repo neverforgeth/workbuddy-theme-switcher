@@ -22,6 +22,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Manager, State};
 
 mod capture_window;
+mod codedrobe_diagnostic;
 #[cfg(debug_assertions)]
 mod integration_qa;
 mod live_preview;
@@ -89,6 +90,7 @@ impl Default for AppState {
 struct MonitorRuntime {
     started: AtomicBool,
     stop_requested: AtomicBool,
+    retry_reset_requested: AtomicBool,
     snapshot: Mutex<MonitorSnapshot>,
 }
 
@@ -296,14 +298,15 @@ struct RetryControl {
     key: Option<String>,
     attempts: u8,
     next_attempt: Option<Instant>,
+    last_error: Option<String>,
+    blocked: bool,
 }
 
 impl RetryControl {
     fn reset_if_key_changed(&mut self, key: String) -> bool {
         if self.key.as_deref() != Some(&key) {
+            self.reset();
             self.key = Some(key);
-            self.attempts = 0;
-            self.next_attempt = None;
             true
         } else {
             false
@@ -315,7 +318,8 @@ impl RetryControl {
     }
 
     fn can_attempt(&self) -> bool {
-        self.attempts < RETRY_DELAYS_SECS.len() as u8
+        !self.blocked
+            && self.attempts < RETRY_DELAYS_SECS.len() as u8
             && self.next_attempt.is_none_or(|time| Instant::now() >= time)
     }
 
@@ -330,6 +334,25 @@ impl RetryControl {
         self.key = None;
         self.attempts = 0;
         self.next_attempt = None;
+        self.last_error = None;
+        self.blocked = false;
+    }
+
+    fn record_error(&mut self, code: &str) {
+        self.record_failure();
+        self.last_error = Some(code.to_string());
+        self.blocked = codedrobe_diagnostic::deterministic(code);
+    }
+
+    fn wait_status(&self) -> (&'static str, Option<&str>) {
+        let status = if self.blocked {
+            "自动恢复已暂停；请手动应用或更新主题切换器"
+        } else if self.attempts >= RETRY_DELAYS_SECS.len() as u8 {
+            "已停止自动重试；请检查连接后手动应用"
+        } else {
+            "等待页面稳定后重试"
+        };
+        (status, self.last_error.as_deref())
     }
 }
 
@@ -485,6 +508,10 @@ fn set_auto_keep_theme(
         saved.auto_keep_theme = enabled;
         save_persistent_state(&app, &saved)?;
         set_login_autostart(&app, enabled)?;
+        state
+            .monitor
+            .retry_reset_requested
+            .store(true, Ordering::SeqCst);
         update_monitor(
             &state.monitor,
             if enabled {
@@ -870,6 +897,9 @@ fn monitor_tick(
     if workbuddy_session::has_trial(app) {
         return;
     }
+    if monitor.retry_reset_requested.swap(false, Ordering::SeqCst) {
+        retry.reset();
+    }
     let saved = match load_persistent_state(app) {
         Ok(saved) => saved,
         Err(_) => {
@@ -911,12 +941,8 @@ fn monitor_tick(
     if !is_workbuddy_running() {
         retry.reset_if_key_changed(format!("{}:not-running", theme_id));
         if !retry.can_attempt() {
-            update_monitor(
-                monitor,
-                "自动应用失败",
-                retry.attempts,
-                Some("RETRY_LIMIT_REACHED"),
-            );
+            let (status, code) = retry.wait_status();
+            update_monitor(monitor, status, retry.attempts, code);
             return;
         }
         if manual_operation_pending.load(Ordering::SeqCst) {
@@ -939,7 +965,7 @@ fn monitor_tick(
                 update_monitor(monitor, "已连接，正在检查主题", 0, None);
             }
             Err(error) => {
-                retry.record_failure();
+                retry.record_error(&error.code);
                 update_monitor(monitor, "自动应用失败", retry.attempts, Some(&error.code));
             }
         }
@@ -984,12 +1010,8 @@ fn monitor_tick(
         return;
     }
     if !retry.can_attempt() {
-        update_monitor(
-            monitor,
-            "自动应用失败",
-            retry.attempts,
-            Some("RETRY_LIMIT_REACHED"),
-        );
+        let (status, code) = retry.wait_status();
+        update_monitor(monitor, status, retry.attempts, code);
         return;
     }
     if manual_operation_pending.load(Ordering::SeqCst) {
@@ -1029,18 +1051,10 @@ fn monitor_tick(
             update_monitor_with_time(monitor, "主题已自动恢复并验证", 0, None, Some(timestamp));
         }
         Err(error) => {
-            let workbuddy_version = read_workbuddy_version(&workbuddy_path);
-            let _ = write_log(
-                app,
-                "auto-reapply",
-                "failed",
-                Some(&theme_id),
-                workbuddy_path.to_str(),
-                workbuddy_version.as_deref(),
-                &error.code,
-            );
-            retry.record_failure();
-            update_monitor(monitor, "自动应用失败", retry.attempts, Some(&error.code));
+            // apply_theme_locked logs command failures; don't duplicate the same event here.
+            retry.record_error(&error.code);
+            let (status, code) = retry.wait_status();
+            update_monitor(monitor, status, retry.attempts, code);
         }
     }
 }
@@ -2034,23 +2048,32 @@ fn run_codedrobe(app: &AppHandle, args: &[String]) -> AppResult<Value> {
     let output = output_with_deadline(&mut command, Duration::from_secs(30)).map_err(|error| {
         if error.kind() == io::ErrorKind::NotFound {
             AppError::new("NODE_NOT_FOUND", "内置 Node.js 运行时不可用。")
+        } else if error.kind() == io::ErrorKind::TimedOut {
+            let _ = write_log(
+                app,
+                "codedrobe",
+                "process-timeout",
+                None,
+                None,
+                None,
+                "CODEDROBE_TIMEOUT",
+            );
+            AppError::new(
+                "CODEDROBE_TIMEOUT",
+                codedrobe_diagnostic::message("CODEDROBE_TIMEOUT"),
+            )
         } else {
             AppError::new("CODEDROBE_COMMAND_FAILED", "无法启动本地 CodeDrobe Core。")
         }
     })?;
     if !output.status.success() {
-        let combined = format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        let code = known_codedrobe_error_code(&combined).unwrap_or("CODEDROBE_COMMAND_FAILED");
-        let process_code = output
-            .status
-            .code()
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| "terminated".to_string());
-        let diagnostic = format!("{}-EXIT{}", code, process_code);
+        let report = codedrobe_diagnostic::parse(&String::from_utf8_lossy(&output.stderr))
+            .unwrap_or(codedrobe_diagnostic::Diagnostic {
+                code: "CODEDROBE_COMMAND_FAILED",
+                checks: vec![],
+            });
+        let code = report.code;
+        let diagnostic = report.log_code(output.status.code().unwrap_or(-1));
         // Keep only a static error code and exit status; command output can include target details
         // and is intentionally never written to disk.
         let _ = write_log(
@@ -2062,7 +2085,11 @@ fn run_codedrobe(app: &AppHandle, args: &[String]) -> AppResult<Value> {
             None,
             &diagnostic,
         );
-        return Err(AppError::new(code, codedrobe_error_message(code)));
+        let mut message = codedrobe_diagnostic::message(code).to_string();
+        if !report.checks.is_empty() {
+            message.push_str(&format!(" 检查项：{}。", report.checks.join("、")));
+        }
+        return Err(AppError::new(code, message));
     }
     serde_json::from_slice(&output.stdout).map_err(|_| {
         AppError::new(
@@ -2142,30 +2169,6 @@ fn theme_probe_args(theme_package: &Path, port: u16) -> Vec<String> {
         "10000".to_string(),
         "--json".to_string(),
     ]
-}
-
-fn known_codedrobe_error_code(output: &str) -> Option<&'static str> {
-    [
-        "CODEDROBE_RESTART_REQUIRED",
-        "CODEDROBE_VERIFY_FAILED",
-        "CODEDROBE_DOM_INCOMPATIBLE",
-        "CODEDROBE_PORT_OCCUPIED",
-        "TARGET_NOT_FOUND",
-        "NOT_CONNECTED",
-    ]
-    .into_iter()
-    .find(|code| output.contains(code))
-}
-
-fn codedrobe_error_message(code: &str) -> &'static str {
-    match code {
-        "CODEDROBE_RESTART_REQUIRED" => "WorkBuddy 需要重启后才能开启本地 CDP。",
-        "CODEDROBE_VERIFY_FAILED" => "主题已尝试应用，但 CodeDrobe 验证未通过。",
-        "CODEDROBE_DOM_INCOMPATIBLE" => "WorkBuddy 页面仍在加载，主题暂时无法应用。",
-        "CODEDROBE_PORT_OCCUPIED" => "本地 CDP 端口已被其他程序占用。",
-        "TARGET_NOT_FOUND" | "NOT_CONNECTED" => "未找到可用的 WorkBuddy renderer。",
-        _ => "本地 CodeDrobe Core 未能完成操作，请查看日志目录。",
-    }
 }
 
 fn codedrobe_verify_passes(value: &Value) -> bool {
@@ -2723,6 +2726,34 @@ mod tests {
         retry.reset_if_key_changed("ice:two".to_string());
         assert!(retry.can_attempt());
         assert_eq!(retry.attempts, 0);
+    }
+
+    #[test]
+    fn deterministic_failure_pauses_without_losing_its_reason() {
+        let mut retry = RetryControl::default();
+        retry.reset_if_key_changed("sky:one".into());
+        retry.record_error("CODEDROBE_DOM_INCOMPATIBLE");
+        retry.next_attempt = Some(Instant::now() - Duration::from_secs(30));
+        assert!(!retry.can_attempt());
+        assert_eq!(retry.wait_status().1, Some("CODEDROBE_DOM_INCOMPATIBLE"));
+        assert!(retry.wait_status().0.contains("暂停"));
+        retry.reset_if_key_changed("sky:two".into());
+        assert!(retry.can_attempt());
+    }
+
+    #[test]
+    fn temporary_failure_waits_and_exhaustion_retains_original_code() {
+        let mut retry = RetryControl::default();
+        retry.record_error("CODEDROBE_CDP_TIMEOUT");
+        assert!(retry.wait_status().0.contains("等待"));
+        assert_eq!(retry.wait_status().1, Some("CODEDROBE_CDP_TIMEOUT"));
+        retry.next_attempt = None;
+        assert!(retry.can_attempt());
+        retry.record_error("CODEDROBE_CDP_TIMEOUT");
+        retry.record_error("CODEDROBE_CDP_TIMEOUT");
+        assert!(!retry.can_attempt());
+        assert!(retry.wait_status().0.contains("停止"));
+        assert_eq!(retry.wait_status().1, Some("CODEDROBE_CDP_TIMEOUT"));
     }
 
     #[test]

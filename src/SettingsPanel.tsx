@@ -51,6 +51,8 @@ export function SettingsPanel({
             <dd>{snapshot?.runtime.monitorStatus || "未检测"}</dd>
             <dt>恢复重试</dt>
             <dd>{snapshot?.runtime.retryCount ?? 0} / 3</dd>
+            <dt>最近错误码</dt>
+            <dd>{snapshot?.runtime.lastErrorCode || "无"}</dd>
             <dt>开机启动</dt>
             <dd>
               {snapshot?.runtime.loginAutostartEnabled ? "已开启" : "未开启"}
@@ -72,8 +74,7 @@ export function SettingsPanel({
             </button>
           </div>
           <p className="footnote">
-            仿真样板对应 5.2.6；其他版本需运行时验证，未声明全部 5.3.x
-            已通过实机验收。
+            仿真样板对应 5.2.6；主题应用前会检查当前页面结构。必要组件不匹配时会停止应用，不会通过关闭校验强行换肤。
           </p>
         </section>
         <section className="panel">

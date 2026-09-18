@@ -1,8 +1,16 @@
-# WorkBuddy 主题工作台 1.6.2（图片融合候选版）
+# WorkBuddy 主题工作台 1.6.3（兼容修复候选版）
 
 纯离线图片主题编辑器，沿用 Tauri、React 和 CodeDrobe。流程：**上传图片 → 本地推荐风格 → 开始真实预览 → 微调 → 保存或保留应用**。不生成或美化原图，不接入 AI，不改变 WorkBuddy 的功能布局。
 
-1.6.2 新图片采用风格 v2：默认零模糊、连续主画布、透明输入内层、18px 助手消息、图片衍生的分层配色。旧主题继续使用旧规则，主动“创建新版融合副本”才升级。当前为候选版，未进行本轮实机换肤及截图验收，不自动安装或重启 WorkBuddy。详见 [1.6.2 验证说明](docs/1.6.2-validation.md)；历史记录见 [1.6.1](docs/1.6.1-validation.md) 和 [1.6.0](docs/1.6.0-validation.md)。
+1.6.3 修复内置主题在新版输入框结构上的必要组件误判，以及附属空白窗口拖住换肤预检查的问题。补齐 5.5 系列 `.cr-input-container` 的外观，保留旧输入框支持；错误码与失败检查项会安全传递到界面和日志，确定性故障暂停自动重试。安装包自带 Node 和 CodeDrobe，无需命令行配置。修复依据、回归与验收边界见 [1.6.3 验证说明](docs/1.6.3-validation.md)。
+
+原有图片融合 v2、默认零模糊、草稿/不可变修订、试用与恢复流程保持不变。当前仍为候选版，不自动覆盖安装或重启 WorkBuddy。历史验证记录：[1.6.2](docs/1.6.2-validation.md)、[1.6.1](docs/1.6.1-validation.md)、[1.6.0](docs/1.6.0-validation.md)。
+
+## 下载后使用
+
+从 [Releases](https://github.com/neverforgeth/workbuddy-theme-switcher/releases) 下载 **1.6.3 Windows x64 安装包**，退出旧切换器后安装。打开切换器，自动识别 WorkBuddy 路径，选择内置主题并应用；已经连上 CDP 时不需要重启。未开放 CDP 时，保存工作后在界面单独确认启动/重启即可，不需要运行命令。若电脑缺少 WebView2，安装器会调用内置引导程序安装运行环境，该首次安装步骤可能需要联网。
+
+遇到必要组件不匹配时会明确报错并暂停重试；“设置与诊断”提供错误码和日志目录。不要关闭验证或编辑应用安装文件来强行注入。
 
 ## 使用
 
@@ -89,6 +97,8 @@ npm run typecheck
 npm run lint
 npm test
 npm run test:rust
+npm run check:builtin-compat
+npm run test:compat
 $env:STUDIO_QA_FIXTURES = Join-Path (Get-Location) '.qa/engine-fixtures.json'
 npm run test:rust -- --lib export_real_engine_visual_fixtures
 $env:NO_PROXY = '127.0.0.1,localhost'

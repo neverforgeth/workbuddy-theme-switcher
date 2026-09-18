@@ -291,7 +291,7 @@ export default function App({ api = studioApi }: { api?: StudioApi }) {
           <span className="brand-icon">◈</span>
           <div>
             <strong>WorkBuddy 主题工作台</strong>
-            <small>图片融合 · 1.6.2 候选版（实机待验收）</small>
+            <small>图片融合 · 1.6.3 候选版</small>
           </div>
         </div>
         <div className="top-status">

@@ -1,3 +1,5 @@
+import { codedError } from "../diagnostic.mjs";
+
 export async function listCdpTargets(port, timeoutMs = 1500) {
   const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
     signal: AbortSignal.timeout(timeoutMs),
@@ -24,14 +26,14 @@ export class CdpSession {
 
   async open() {
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("CDP socket open timed out.")), this.timeoutMs);
+      const timer = setTimeout(() => reject(codedError("CODEDROBE_CDP_TIMEOUT", "CDP socket open timed out.")), this.timeoutMs);
       this.socket.addEventListener("open", () => {
         clearTimeout(timer);
         resolve();
       }, { once: true });
       this.socket.addEventListener("error", (error) => {
         clearTimeout(timer);
-        reject(error);
+        reject(codedError("CODEDROBE_CDP_CONNECTION_FAILED", "CDP socket could not open.", error));
       }, { once: true });
     });
     this.socket.addEventListener("message", (event) => this.#onMessage(event));
@@ -48,7 +50,7 @@ export class CdpSession {
       if (!waiter) return;
       this.pending.delete(message.id);
       clearTimeout(waiter.timer);
-      if (message.error) waiter.reject(new Error(`${message.error.message} (${message.error.code})`));
+      if (message.error) waiter.reject(codedError("CODEDROBE_CDP_PROTOCOL_ERROR", "CDP rejected a request."));
       else waiter.resolve(message.result);
       return;
     }
@@ -59,7 +61,7 @@ export class CdpSession {
     this.closed = true;
     for (const waiter of this.pending.values()) {
       clearTimeout(waiter.timer);
-      waiter.reject(new Error(message));
+      waiter.reject(codedError("CODEDROBE_CDP_CONNECTION_FAILED", message));
     }
     this.pending.clear();
   }
@@ -71,12 +73,12 @@ export class CdpSession {
   }
 
   send(method, params = {}) {
-    if (this.closed) return Promise.reject(new Error("CDP session is closed."));
+    if (this.closed) return Promise.reject(codedError("CODEDROBE_CDP_CONNECTION_FAILED", "CDP session is closed."));
     return new Promise((resolve, reject) => {
       const id = this.nextId++;
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`CDP request timed out: ${method}`));
+        reject(codedError("CODEDROBE_CDP_TIMEOUT", "CDP request timed out."));
       }, this.timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
       this.socket.send(JSON.stringify({ id, method, params }));
@@ -91,8 +93,7 @@ export class CdpSession {
       userGesture: false,
     });
     if (result.exceptionDetails) {
-      const detail = result.exceptionDetails.exception?.description ?? result.exceptionDetails.text;
-      throw new Error(`Renderer evaluation failed: ${detail}`);
+      throw codedError("CODEDROBE_RENDERER_EVALUATION_FAILED", "Renderer evaluation failed.");
     }
     return result.result?.value;
   }

@@ -54,6 +54,7 @@ impl StudioState {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RuntimeSnapshot {
+    pub compatibility: Option<Value>,
     pub workbuddy: WorkBuddyStatus,
     pub runtime: RuntimeStatus,
     pub trial: Option<TrialSession>,
@@ -110,6 +111,52 @@ struct TrialJournal {
     commit_reference: Option<ThemeRef>,
     #[serde(default)]
     target_id: Option<String>,
+    #[serde(default)]
+    effective: Option<workbuddy_compat::EffectiveTheme>,
+    #[serde(default)]
+    previous_identity: Option<(String, String)>,
+    #[serde(default)]
+    previous_css: Option<String>,
+}
+fn trial_css(j: &TrialJournal) -> AppResult<&str> {
+    j.effective
+        .as_ref()
+        .map(|e| e.css.as_str())
+        .or_else(|| j.draft.as_ref().map(|d| d.compiled.css.as_str()))
+        .ok_or_else(lock_error)
+}
+pub(crate) fn pinned_target(app: &AppHandle) -> Option<String> {
+    app.state::<StudioState>()
+        .trial
+        .lock()
+        .ok()?
+        .as_ref()?
+        .target_id
+        .clone()
+}
+pub(crate) fn trial_css_for_key(app: &AppHandle, key: &str) -> Option<String> {
+    let studio = app.state::<StudioState>();
+    let lock = studio.trial.lock().ok()?;
+    let j = lock.as_ref()?;
+    (j.candidate.id == key)
+        .then(|| trial_css(j).ok().map(str::to_owned))
+        .flatten()
+}
+pub(crate) fn trial_key_for_runtime(app: &AppHandle, id: &str) -> Option<String> {
+    let studio = app.state::<StudioState>();
+    let lock = studio.trial.lock().ok()?;
+    let j = lock.as_ref()?;
+    (j.candidate.runtime_theme_id == id).then(|| j.candidate.id.clone())
+}
+pub(crate) fn restoring_css(app: &AppHandle, key: &str) -> Option<String> {
+    let studio = app.state::<StudioState>();
+    let lock = studio.trial.lock().ok()?;
+    let j = lock.as_ref()?;
+    if j.session.phase == "restoring" && j.previous_key.as_deref() == Some(key) {
+        j.previous_css.clone()
+    } else {
+        None
+    }
 }
 fn lock_error() -> AppError {
     AppError::new("STUDIO_BUSY", "工作台状态暂不可用，请重试。")
@@ -725,6 +772,9 @@ pub(crate) async fn studio_start_trial(
                 ));
             }
             let mut journal = TrialJournal {
+                previous_css:baseline_cdp.evaluate("document.getElementById('codedrobe-theme-style-workbuddy')?.textContent??null")?.as_str().map(str::to_string),
+                effective:Some(workbuddy_compat::compile(&doc.compiled.css,baseline_cdp.evaluate(workbuddy_compat::DOM)?["structure"].as_str().unwrap_or("unknown"))?),
+                previous_identity:runtime.zip(hash),
                 session: TrialSession {
                     id,
                     name: doc.name.clone(),
@@ -765,11 +815,11 @@ pub(crate) async fn studio_start_trial(
                 Local::now().timestamp_millis(),
                 journal.draft.as_ref().unwrap().edit_sequence,
             );
-            let connected = live_preview::Cdp::connect(load_persistent_state(&app)?.preferred_port)
+            let connected = trial_cdp(&app,&journal)
                 .and_then(|mut cdp| {
                     cdp.verify(
                         &journal.candidate.runtime_theme_id,
-                        &journal.draft.as_ref().unwrap().compiled.css,
+                        trial_css(&journal)?,
                     )?;
                     Ok(cdp.target_id.clone())
                 });
@@ -780,9 +830,7 @@ pub(crate) async fn studio_start_trial(
                     return Err(error);
                 }
             }
-            journal.session.css_hash = Some(live_preview::css_hash(
-                &journal.draft.as_ref().unwrap().compiled.css,
-            ));
+            journal.session.css_hash = Some(live_preview::css_hash(trial_css(&journal)?));
             set_trial(&app, Some(journal.clone()))?;
             Ok(journal.session)
         })
@@ -822,7 +870,10 @@ fn active_journal(app: &AppHandle, id: &str) -> AppResult<TrialJournal> {
         .ok_or_else(|| AppError::new("TRIAL_EXPIRED", "试穿已结束或正在恢复。"))
 }
 fn trial_cdp(app: &AppHandle, j: &TrialJournal) -> AppResult<live_preview::Cdp> {
-    let cdp = live_preview::Cdp::connect(load_persistent_state(app)?.preferred_port)?;
+    let cdp = live_preview::Cdp::connect_target(
+        load_persistent_state(app)?.preferred_port,
+        j.target_id.as_deref().ok_or_else(lock_error)?,
+    )?;
     if j.target_id.as_deref() != Some(cdp.target_id.as_str()) {
         return Err(AppError::new(
             "TRIAL_RENDERER_CHANGED",
@@ -877,25 +928,33 @@ pub(crate) async fn studio_sync_trial(
             }
             let result: AppResult<TrialSession> = (|| {
                 let mut cdp = trial_cdp(&app, &j)?;
+                let previous_css = trial_css(&j)?.to_string();
+                let effective = workbuddy_compat::compile(
+                    &doc.compiled.css,
+                    cdp.evaluate(workbuddy_compat::DOM)?["structure"]
+                        .as_str()
+                        .unwrap_or("unknown"),
+                )?;
                 if j.session.synced_sequence == Some(sequence)
                     && old.compiled.css == doc.compiled.css
                 {
-                    cdp.verify(&j.candidate.runtime_theme_id, &doc.compiled.css)?;
+                    cdp.verify(&j.candidate.runtime_theme_id, trial_css(&j)?)?;
                     return Ok(j.session.clone());
                 }
                 // Persist recovery state before the host changes. Original baseline remains immutable.
                 j.draft = Some(doc.clone());
+                j.effective = Some(effective.clone());
                 j.session.synced_sequence = None;
                 set_trial(&app, Some(j.clone()))?;
                 cdp.update(
                     &j.candidate.runtime_theme_id,
-                    &old.compiled.css,
-                    &doc.compiled.css,
+                    &previous_css,
+                    &effective.css,
                     sequence,
                 )?;
                 active_journal(&app, &trial_id)?;
                 j.session.synced_sequence = Some(sequence);
-                j.session.css_hash = Some(live_preview::css_hash(&doc.compiled.css));
+                j.session.css_hash = Some(effective.final_hash);
                 set_trial(&app, Some(j.clone()))?;
                 Ok(j.session.clone())
             })();
@@ -951,6 +1010,7 @@ pub(crate) async fn studio_capture_trial(
             &trial_id,
             doc,
             &j.candidate.runtime_theme_id,
+            trial_css(&j)?,
             version,
         )?;
         capture_window::require_available(&path)?;
@@ -989,7 +1049,7 @@ fn validate_capture_binding(
         || j.target_id.as_deref() != Some(frame.target_id.as_str())
         || doc.draft_id != frame.draft_id
         || doc.edit_sequence != frame.sequence
-        || live_preview::css_hash(&doc.compiled.css) != frame.css_hash
+        || live_preview::css_hash(trial_css(j)?) != frame.css_hash
     {
         return Err(capture_changed());
     }
@@ -1063,7 +1123,24 @@ fn package_fingerprint(app: &AppHandle, key: &str) -> AppResult<(String, String)
         .pointer("/targets/workbuddy/css")
         .and_then(Value::as_str)
         .ok_or_else(lock_error)?;
-    Ok((theme.record.runtime_theme_id, live_preview::css_hash(css)))
+    let mut cdp = if let Some(id) = pinned_target(app) {
+        live_preview::Cdp::connect_target(load_persistent_state(app)?.preferred_port, &id)?
+    } else {
+        live_preview::Cdp::connect(load_persistent_state(app)?.preferred_port)?
+    };
+    let contract = cdp.evaluate(workbuddy_compat::DOM)?;
+    let effective =
+        workbuddy_compat::compile(css, contract["structure"].as_str().unwrap_or("unknown"))?;
+    let (_, id, hash) = cdp.theme_fingerprint()?;
+    // Upgrading from 1.6.3 may leave the original known CSS installed.
+    let chosen = if id.as_deref() == Some(&theme.record.runtime_theme_id)
+        && hash == Some(live_preview::css_hash(css))
+    {
+        live_preview::css_hash(css)
+    } else {
+        effective.final_hash
+    };
+    Ok((theme.record.runtime_theme_id, chosen))
 }
 fn recover_trial_with_policy(app: &AppHandle, restore_external: bool) -> AppResult<()> {
     let studio = app.state::<StudioState>();
@@ -1083,7 +1160,7 @@ fn recover_trial_with_policy(app: &AppHandle, restore_external: bool) -> AppResu
                 "WorkBuddy 已关闭；恢复记录已保留，待它重新连接后验证恢复结果。",
             ));
         }
-        let mut cdp = live_preview::Cdp::connect(port)?;
+        let mut cdp = trial_cdp(app, &j)?;
         let (count, id, hash) = cdp.theme_fingerprint()?;
         // Identity alone is insufficient: another tool can edit/remove our style node.
         // Accept both sides of a journaled CSS update, so a mid-update crash can roll back.
@@ -1094,11 +1171,14 @@ fn recover_trial_with_policy(app: &AppHandle, restore_external: bool) -> AppResu
         if let Some(doc) = &j.draft {
             known.push((
                 j.candidate.runtime_theme_id.clone(),
-                live_preview::css_hash(&doc.compiled.css),
+                live_preview::css_hash(trial_css(&j).unwrap_or(&doc.compiled.css)),
             ));
         }
         if let Some(key) = &j.previous_key {
             known.push(package_fingerprint(app, key)?);
+        }
+        if let Some(identity) = &j.previous_identity {
+            known.push(identity.clone());
         }
         if let Some(reference) = &j.commit_reference {
             known.push(package_fingerprint(app, &reference.key())?);
@@ -1250,7 +1330,7 @@ pub(crate) async fn studio_confirm_trial(app: AppHandle) -> AppResult<ThemeRef> 
                 ));
             }
             let doc = j.draft.as_ref().ok_or_else(|| lock_error())?;
-            trial_cdp(&app, &j)?.verify(&j.candidate.runtime_theme_id, &doc.compiled.css)?;
+            trial_cdp(&app, &j)?.verify(&j.candidate.runtime_theme_id, trial_css(&j)?)?;
             let store = ThemeStore::production()?;
             let reference = {
                 let _lock = studio.store_lock.lock().map_err(|_| lock_error())?;
@@ -1300,6 +1380,7 @@ fn collect_snapshot(app: &AppHandle) -> AppResult<RuntimeSnapshot> {
     let workbuddy = detect_workbuddy_inner(app)?;
     let managed = app.state::<AppState>();
     let result = RuntimeSnapshot {
+        compatibility: workbuddy_compat::observe(app).ok(),
         workbuddy,
         runtime: runtime_status(app, &managed)?,
         trial: studio
@@ -1336,6 +1417,9 @@ pub(crate) fn known_healthy(app: &AppHandle, key: &str) -> bool {
             .and_then(|s| s.clone())
             .is_some_and(|s| {
                 s.workbuddy.cdp_available
+                    && s.compatibility
+                        .as_ref()
+                        .is_some_and(|r| r["status"] == "passed" && r["identity"] == true)
                     && s.workbuddy.style_node_count == Some(1)
                     && s.workbuddy.current_theme_id.as_deref() == Some(key)
             })
@@ -1418,6 +1502,11 @@ pub(crate) fn tick(app: &AppHandle) {
     }
     let managed = app.state::<AppState>();
     if let Ok(_lock) = managed.operation_lock.try_lock() {
+        if let Err(error) = workbuddy_compat::recover_pending(app) {
+            if let Ok(mut issue) = studio.recovery_error.lock() {
+                *issue = Some(error.code);
+            }
+        }
         match collect_snapshot(app) {
             Ok(snapshot) => {
                 let _ = app.emit("studio-runtime", snapshot);
@@ -1429,10 +1518,7 @@ pub(crate) fn tick(app: &AppHandle) {
                     .filter(|j| j.session.phase == "active");
                 if let Some(mut j) = live {
                     let check = trial_cdp(app, &j).and_then(|mut cdp| {
-                        cdp.verify(
-                            &j.candidate.runtime_theme_id,
-                            &j.draft.as_ref().ok_or_else(lock_error)?.compiled.css,
-                        )
+                        cdp.verify(&j.candidate.runtime_theme_id, trial_css(&j)?)
                     });
                     if let Err(error) = check {
                         j.session.phase = "pendingRecovery".into();
@@ -1544,6 +1630,9 @@ mod tests {
             TrialSession::live("trial".into(), "fixture".into(), 1000, doc.edit_sequence);
         session.css_hash = Some(live_preview::css_hash(&doc.compiled.css));
         let j = TrialJournal {
+            effective: None,
+            previous_identity: None,
+            previous_css: None,
             session,
             candidate: ThemeRecord {
                 id: "trial".into(),

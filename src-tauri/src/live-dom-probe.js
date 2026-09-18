@@ -1,6 +1,8 @@
 /* global innerWidth, innerHeight, document, getComputedStyle, window, MutationObserver, scrollX, scrollY */
 // No text values, attributes containing user data, or DOM snapshots leave this expression.
 (() => {
+  // eslint-disable-next-line no-undef
+  const contract = __WORKBUDDY_DOM__;
   const rect = (r) => ({
     x: Math.max(0, r.left),
     y: Math.max(0, r.top),
@@ -44,7 +46,7 @@
     ["menu", "[role='menu'],[role='listbox'],[role='tooltip']"],
     ["dialog", "[role='dialog']"],
   ];
-  const regions = entries.flatMap(([region, selector]) =>
+  const regions = entries.map(([region,selector])=>[region,contract.selectors[region]||selector]).flatMap(([region, selector]) =>
     Array.from(document.querySelectorAll(selector))
       .slice(0, 80)
       .map((e) => {
@@ -59,13 +61,9 @@
       })
       .filter((e) => visible(e.rect)),
   );
-  const scene = document.querySelector('[role="dialog"]')
+  const scene = regions.some(r=>r.region==='dialog')
     ? "dialog"
-    : document.querySelector(".wb-home-page")
-      ? "home"
-      : document.querySelector(".main-content--chat")
-        ? "chat"
-        : "unknown";
+    : regions.some(r=>r.region==='menu') ? 'menu' : contract.scene;
   return {
     width: innerWidth,
     height: innerHeight,

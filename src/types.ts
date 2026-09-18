@@ -184,6 +184,7 @@ export type RenderedPreview = {
   captureMs: number;
 };
 export type RuntimeSnapshot = {
+  compatibility?: {adapterVersion:string;structure:string;scene:string;status:string;code:string;identity:boolean;checkedAt:string;durationMs:number;checks:{name:string;status:string;pass:boolean}[];unchecked:string[]} | null;
   workbuddy: WorkBuddyStatus;
   runtime: RuntimeStatus;
   trial: TrialSession | null;

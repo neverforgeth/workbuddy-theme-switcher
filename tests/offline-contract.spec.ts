@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
-const probe = fs.readFileSync("src-tauri/src/live-dom-probe.js", "utf8");
+const probe = fs.readFileSync("src-tauri/src/live-dom-probe.js", "utf8").replace('__WORKBUDDY_DOM__',fs.readFileSync('vendor/codedrobe/src/adapters/workbuddy-compat/dom.js','utf8'));
 test("local capture does not scan private text or prepare an upload mask", async ({
   page,
 }) => {

@@ -1,5 +1,6 @@
 const workbuddy = {
   id: "workbuddy",
+  structuralContract: true,
   displayName: "Tencent WorkBuddy",
   defaultPort: 9336,
   lastVerified: {

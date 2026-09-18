@@ -51,6 +51,16 @@ fn fixture_bytes(color: [u8; 3]) -> Vec<u8> {
     .unwrap();
     out.into_inner()
 }
+// Acceptance artifacts redact the entire sidebar; production local preview stays unchanged.
+fn redact_home_png(png: &[u8], port: u16) -> AppResult<Vec<u8>> {
+    let mut cdp = live_preview::Cdp::connect(port)?;
+    let right = cdp.evaluate("(()=>{if(!document.querySelector('.wb-home-page'))return null;const r=document.querySelector('.conversation-sidebar')?.getBoundingClientRect();return r?Math.ceil(r.right):null})()")?.as_u64().ok_or_else(||qa_error("no safe home sidebar boundary"))?;
+    let mut image = image::load_from_memory(png).map_err(|_|qa_error("capture decode"))?.to_rgba8();
+    for y in 0..image.height() { for x in 0..(right as u32).min(image.width()) { image.put_pixel(x,y,image::Rgba([236,239,242,255])); } }
+    let mut encoded = io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgba8(image).write_to(&mut encoded,image::ImageFormat::Png).map_err(|_|qa_error("capture redaction"))?;
+    Ok(encoded.into_inner())
+}
 async fn capture_home(
     app: AppHandle,
     trial_id: String,
@@ -78,7 +88,7 @@ async fn exercise(app: &AppHandle, mode: &str) -> AppResult<()> {
         return record("crash-recovery-pass", json!({"restored":key}));
     }
     let before = studio_runtime(app.clone()).await?.workbuddy;
-    if matches!(mode, "capture" | "live") {
+    if matches!(mode, "capture" | "live" | "compat-home") {
         let mut cdp = live_preview::Cdp::connect(load_persistent_state(app)?.preferred_port)?;
         if cdp.evaluate("!!document.querySelector('.wb-home-page')")? != Value::Bool(true) {
             return Err(qa_error(
@@ -130,6 +140,63 @@ async fn exercise(app: &AppHandle, mode: &str) -> AppResult<()> {
         json!({"samples":40,"p95Ms":timings[37],"scope":"command dispatch + compile + atomic draft persistence; excludes UI/IPC paint"}),
     )?;
     let result: AppResult<()> = async {
+        if mode == "compat-home" {
+            let require_home = || -> AppResult<()> {
+                let mut cdp = live_preview::Cdp::connect(load_persistent_state(app)?.preferred_port)?;
+                let contract = cdp.evaluate(workbuddy_compat::DOM)?;
+                if contract["scene"] != "home" || contract["compatible"] != true {
+                    return Err(qa_error("home page required; no conversation read or switched"));
+                }
+                Ok(())
+            };
+            let doc = theme_library::ThemeStore::production()?.read_draft(&id)?;
+            for theme in theme_catalog(app)?.into_iter().filter(|t| !t.is_custom) {
+                require_home()?;
+                let started = Instant::now();
+                studio_apply(app.clone(), theme_library::ThemeRef { id: theme.id.clone(), revision: None }, false).await?;
+                let apply_ms = started.elapsed().as_millis();
+                let report = workbuddy_compat::observe(app)?;
+                if report["status"] != "passed" || report["identity"] != true {
+                    return Err(qa_error("builtin real paint failed"));
+                }
+                require_home()?;
+                let resolved = resolve_theme(app, &theme.id)?;
+                let (_, effective) = workbuddy_compat::prepare(app, &resolved, "cr-v1")?;
+                let mut cdp = live_preview::Cdp::connect(load_persistent_state(app)?.preferred_port)?;
+                let frame = live_preview::capture(&mut cdp, "qa-builtin", &doc, &theme.runtime_theme_id, &effective.css, before.version.clone())?;
+                if frame.view.scene != "home" {return Err(qa_error("scene changed; screenshot discarded"));}
+                let redacted=redact_home_png(&frame.png,load_persistent_state(app)?.preferred_port)?;
+                atomic_write(&runtime_root()?.join(format!("actual-{}.png", theme.id)), &redacted).map_err(|_|qa_error("capture artifact"))?;
+                record("builtin-home-pass", json!({"theme":theme.id,"applyMs":apply_ms,"captureMs":frame.view.capture_ms,"report":report}))?;
+                studio_restore(app.clone()).await?;
+                assert_theme(app, None)?;
+            }
+            let fixtures: Value = serde_json::from_slice(&fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join(".qa/engine-fixtures.json")).map_err(|_|qa_error("image fixtures missing"))?).map_err(|_|qa_error("image fixtures invalid"))?;
+            for fixture in fixtures.as_array().ok_or_else(||qa_error("fixture list invalid"))? {
+                require_home()?;
+                let original: theme_library::ThemeDocument = serde_json::from_value(fixture["view"]["document"].clone()).map_err(|_|qa_error("fixture document"))?;
+                let data = fixture["view"]["imagePath"].as_str().and_then(|s|s.split_once(',')).map(|(_,s)|s).ok_or_else(||qa_error("fixture image"))?;
+                let imported = studio_import(app.clone(), "qa.jpg".into(), data.into(), None).await?;
+                let edit = studio_update_draft(app.clone(), imported.document.draft_id.clone(), theme_library::DraftUpdate {
+                    name: "QA real offline style".into(), controls: original.controls.clone(), style: original.style.clone(), reset_style:true, sequence:1, ..Default::default()
+                }).await?;
+                if edit.document.controls.blur != 0 {return Err(qa_error("default blur nonzero"));}
+                let started = Instant::now();
+                let trial = studio_start_trial(app.clone(), edit.document.draft_id.clone(), false).await?;
+                let apply_ms = started.elapsed().as_millis();
+                std::thread::sleep(Duration::from_millis(1100));
+                let frame = capture_home(app.clone(), trial.id.clone()).await?;
+                let png = base64_decode(frame.image_data_url.split_once(',').unwrap().1).ok_or_else(||qa_error("capture decode"))?;
+                let label = fixture["name"].as_str().ok_or_else(||qa_error("fixture name"))?;
+                if !label.chars().all(|c|c.is_ascii_lowercase()||c=='-') {return Err(qa_error("fixture name unsafe"));}
+                let redacted=redact_home_png(&png,load_persistent_state(app)?.preferred_port)?;
+                atomic_write(&runtime_root()?.join(format!("actual-{label}.png")), &redacted).map_err(|_|qa_error("capture artifact"))?;
+                record("image-home-pass", json!({"fixture":label,"applyMs":apply_ms,"captureMs":frame.capture_ms,"report":workbuddy_compat::observe(app)?}))?;
+                studio_cancel_trial(app.clone()).await?;
+                assert_theme(app, None)?;
+            }
+            return Ok(());
+        }
         if mode == "capture" {
             let trial = studio_start_trial(app.clone(), id.clone(), false).await?;
             let app_copy = app.clone();
@@ -403,7 +470,7 @@ pub(crate) fn start_if_requested(app: &AppHandle) {
     if env::var_os("STUDIO_QA_ROOT").is_none()
         || !matches!(
             mode.as_str(),
-            "full" | "live" | "capture" | "lifecycle" | "crash" | "recover"
+            "full" | "live" | "capture" | "lifecycle" | "crash" | "recover" | "compat-home"
         )
     {
         return;

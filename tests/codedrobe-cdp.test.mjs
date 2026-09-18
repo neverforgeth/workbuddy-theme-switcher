@@ -9,6 +9,7 @@ import { execFile } from "node:child_process";
 import http from "node:http";
 import test, { before, after } from "node:test";
 import { chromium } from "@playwright/test";
+import {effectiveTheme} from '../vendor/codedrobe/src/adapters/workbuddy-compat/index.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const bundleRoot = process.env.STUDIO_BUNDLE_ROOT || root;
@@ -49,7 +50,12 @@ async function cli(args, timeout = 30000) {
   return JSON.parse(result.stdout);
 }
 async function apply(record) {
-  return cli(["apply", "--theme", path.join(bundleRoot, record.packagePath), "--no-launch"]);
+  return cli(["apply", "--theme", await prepared(record), "--no-launch"]);
+}
+async function prepared(record) {
+  const bundle=JSON.parse(await fs.readFile(path.join(bundleRoot,record.packagePath),'utf8'));
+  bundle.targets.workbuddy.css=effectiveTheme(bundle.targets.workbuddy.css,'cr-v1').css;
+  const filename=path.join(scratch,record.id+'.codedrobe-theme');await fs.writeFile(filename,JSON.stringify(bundle));return filename;
 }
 async function count() { return page.locator("#codedrobe-theme-style-workbuddy").count(); }
 
@@ -101,7 +107,7 @@ test("bundled CLI: old selector reproduces failure, corrected themes apply/switc
     await page.getByRole("textbox").fill("Fixture input remains editable");
     await page.getByRole("button", { name: "Send fixture" }).click();
   }
-  const verified = await cli(["verify", "--theme", path.join(bundleRoot, catalog.at(-1).packagePath)]);
+  const verified = await cli(["verify", "--theme", await prepared(catalog.at(-1))]);
   assert.ok(verified.targets.some(t => t.result?.pass));
   await page.screenshot({ path: path.join(scratch, "sky-breeze-structural-fixture.png") });
   await cli(["restore"]);
@@ -143,7 +149,7 @@ test("a vanished secondary CDP target is skipped only while a primary really pas
     const result = await apply(catalog.at(-1));
     assert.ok(result.targets.some(t => t.result?.pass));
     assert.ok(result.targets.some(t => t.targetId === "gone" && t.skipped));
-    const verified = await cli(["verify", "--theme", path.join(bundleRoot, catalog.at(-1).packagePath)]);
+    const verified = await cli(["verify", "--theme", await prepared(catalog.at(-1))]);
     assert.ok(verified.targets.some(t => t.result?.pass));
     assert.ok(verified.targets.some(t => t.targetId === "gone" && t.skipped));
   } finally {
@@ -160,4 +166,22 @@ test("a vanished secondary CDP target is skipped only while a primary really pas
     });
     assert.equal(await count(), 0);
   } finally { await page.setContent(html); }
+});
+test('pinned application and restore never touch another healthy WorkBuddy window', {timeout:15000}, async()=>{
+  const secondary=await context.newPage();await secondary.setContent(html);
+  const session=await context.newCDPSession(page);
+  const {targetInfo}=await session.send('Target.getTargetInfo');
+  process.env.WORKBUDDY_CODEDROBE_TARGET_ID=targetInfo.targetId;
+  try {
+    const applied=await apply(catalog[0]);assert.equal(applied.targets.length,1);
+    assert.equal(await count(),1);
+    assert.equal(await secondary.locator('#codedrobe-theme-style-workbuddy').count(),0);
+    const restored=await cli(['apply','--theme',await prepared(catalog[0]),'--no-launch','--restore-baseline']);
+    assert.equal(restored.targets.length,1);
+    assert.equal(await secondary.locator('#codedrobe-theme-style-workbuddy').count(),0);
+    await cli(['restore']);assert.equal(await count(),0);
+    process.env.WORKBUDDY_CODEDROBE_TARGET_ID='vanished-fixed-target';
+    await assert.rejects(cli(['probe','--theme',await prepared(catalog[0]),'--timeout-ms','300']),e=>e.stderr.includes('CODEDROBE_TARGET_TIMEOUT'));
+    assert.equal(await secondary.locator('#codedrobe-theme-style-workbuddy').count(),0);
+  }finally{delete process.env.WORKBUDDY_CODEDROBE_TARGET_ID;await session.detach();await secondary.close();}
 });

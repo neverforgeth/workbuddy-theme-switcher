@@ -1,0 +1,61 @@
+{
+  "sourceCommit": "5464aa230428bba3a3e22ab5603d74fec805a43c",
+  "files": [
+    {
+      "path": "themes.json",
+      "sha256": "2294af63f26b89c54e98a886d9e866e54ddcf656bab9a171166dc2c55aaea146"
+    },
+    {
+      "path": "themes/compat/workbuddy-5.5.css",
+      "sha256": "43fc120a73b5334f7d5229a918142db8e9f73bf4f6931dcd7bc8579adb01e3d6"
+    },
+    {
+      "path": "themes/ice-blue/preset.json",
+      "sha256": "f3bf4f96dea38344d84d5f1bbafd0d21b4b2f439b64fa3c65d6998db38568897"
+    },
+    {
+      "path": "themes/ice-blue/preview-safe.png",
+      "sha256": "de4c9572c1dd120033000a3b70017ac812c58958417f8e99316773ded60d9089"
+    },
+    {
+      "path": "themes/ice-blue/theme.codedrobe-theme",
+      "sha256": "d442013f96eb85101add7e4926b59b42fb123cc5d0fcb186fe01f87bd0b4e1bf"
+    },
+    {
+      "path": "themes/oriental-landscape/preset.json",
+      "sha256": "5d3d501b001c635c3518476bba8d91c8b5674d7262a9daf652d8aa4fec2ad415"
+    },
+    {
+      "path": "themes/oriental-landscape/preview-safe.png",
+      "sha256": "a801b9cd7059ec20f824ea8f2680855d2f0187221e4675c0514f0ee6609ddb87"
+    },
+    {
+      "path": "themes/oriental-landscape/theme.codedrobe-theme",
+      "sha256": "09e3b11c08909604ac8ea63861f575599e3f0de45ae90f4c722a219f22c591ce"
+    },
+    {
+      "path": "themes/pink-lijiajia/preset.json",
+      "sha256": "3dc10c09e0bf0b93a3687f7282b6457278ad34d0d9498ee5b011b429bac66145"
+    },
+    {
+      "path": "themes/pink-lijiajia/preview-safe.png",
+      "sha256": "b07192cc532839bc3fda64cd7ab11e9ef345d3311d996056fc1efdd298f73095"
+    },
+    {
+      "path": "themes/pink-lijiajia/theme.codedrobe-theme",
+      "sha256": "2a056adf9e0a9b198d15ad9d721ff178a687163179dc9233c267119d6bda1b5f"
+    },
+    {
+      "path": "themes/sky-breeze/preset.json",
+      "sha256": "f315314bcf9388d4f6cb34b1c75431736225f7d3d2d89a91ffc737b4d5f8f3f0"
+    },
+    {
+      "path": "themes/sky-breeze/preview-safe.png",
+      "sha256": "f7ec44240404e72a9d1845beb096b3dafd1657a4f247dc0ba46faf37f265f594"
+    },
+    {
+      "path": "themes/sky-breeze/theme.codedrobe-theme",
+      "sha256": "55dd0b53d0599cc459ca7b936098634986cb81e89381803f0e3fe5efbe29ead8"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import process from 'node:process';
 import { CdpSession, listCdpTargets } from "../cdp/session.mjs";
 import { buildDomSnapshotExpression, DOM_SNAPSHOT_DEFAULT_MAX_NODES } from "./dom-snapshot.mjs";
 import { buildApplyExpression, buildProbeExpression, buildRemoveExpression, buildVerifyExpression } from "./renderer-payload.mjs";
@@ -8,7 +9,8 @@ const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mil
 
 export async function findTargets(adapter, port, timeoutMs = 1500) {
   const targets = await listCdpTargets(port, timeoutMs);
-  return targets.filter((target) => adapter.matchTarget(target));
+  const pinned = process.env.WORKBUDDY_CODEDROBE_TARGET_ID;
+  return targets.filter((target) => adapter.matchTarget(target) && (!pinned || target.id === pinned));
 }
 
 export async function waitForTargets(adapter, port, timeoutMs = 30000) {

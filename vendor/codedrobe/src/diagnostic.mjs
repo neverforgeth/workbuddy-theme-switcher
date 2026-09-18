@@ -9,6 +9,10 @@ const CODES = new Set([
   "CODEDROBE_THEME_INVALID", "TARGET_NOT_FOUND", "NOT_CONNECTED",
 ]);
 const CHECKS = new Set([
+  'home-canvas-paint',
+  'theme-identity','css-identity','images-decoded','horizontal-layout','runtime-installed','style-present','renderer-profile',
+  'host-root','known-scene','scene-composer','conversation-timeline','conversation-editor',
+  'canvas-paint','composer-paint','editor-paint','editor-text','assistant-paint','assistant-text','user-paint','menu-paint','dialog-paint','send-paint','send-disc','send-hover','send-disc-hover','single-style-node',
   "root", "home-header", "home-composer", "home-composer-panel", "conversation-composer",
   "assistant-shell", "projects-shell", "expert-shell", "skills-shell", "connector-shell",
   "automation-shell", "project-chat-shell", "project-chat-composer",

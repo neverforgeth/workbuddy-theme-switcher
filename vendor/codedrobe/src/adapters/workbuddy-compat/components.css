@@ -1,0 +1,42 @@
+/* Versioned CR component mapping. No geometry, virtual-scroll, opacity or display overrides. */
+html.codedrobe-host-workbuddy .cr-theme {
+ --cr-text-primary:var(--wb164-text)!important; --cr-text-secondary:var(--wb164-muted)!important;
+ --cr-text-tertiary:var(--wb164-muted)!important; --cr-text-link:var(--wb164-focus)!important;
+ --cr-bg-elevated:var(--wb164-menu)!important; --cr-bg-default:var(--wb164-detail)!important;
+ --cr-bg-hover:var(--wb164-selected)!important; --cr-bg-active:var(--wb164-selected)!important;
+ --cr-border-default:var(--wb164-edge)!important; --cr-border-elevated:var(--wb164-edge)!important;
+ --cr-message-list-bottom-mask-bg:transparent!important;
+}
+html.codedrobe-host-workbuddy .conversation-shell {background:var(--wb164-canvas)!important;color:var(--wb164-text)!important;}
+/* 5.5.6 adds an opaque route outside the already themed home page. */
+html.codedrobe-host-workbuddy :is(.wb-home-route,.wb-home-route__body) {background:transparent!important;color:var(--wb164-text)!important;}
+html.codedrobe-host-workbuddy :is(.conversation-shell__main,.conversation-timeline,.conversation-input-area,.conversation-input-area__input-stack,.cr-message-list-viewport,.cr-message-list,.cr-message-list__content,.cr-document,.cr-input-box__main,.cr-input-container-wrapper,.cr-input-editor-host,.cr-input-toolbar,.cr-input-toolbar__right,.cr-input-footer) {background:transparent!important;}
+html.codedrobe-host-workbuddy .cr-message-list__bottom-mask {background:linear-gradient(transparent,var(--wb164-canvas))!important;}
+html.codedrobe-host-workbuddy :is(.conversation-shell .workbuddy-topbar,.conversation-shell .conversation-header) {background:transparent!important;color:var(--wb164-text)!important;}
+html.codedrobe-host-workbuddy .cr-frame--left>.cr-frame__content {background:var(--wb164-assistant)!important;color:var(--wb164-assistant-text)!important;border-radius:18px!important;box-shadow:inset 0 0 0 1px var(--wb164-edge)!important;}
+html.codedrobe-host-workbuddy .cr-self-bubble {background:var(--wb164-user)!important;color:var(--wb164-user-text)!important;box-shadow:inset 0 0 0 1px var(--wb164-edge)!important;}
+html.codedrobe-host-workbuddy .cr-frame--left .cr-markdown {--cr-text-primary:var(--wb164-assistant-text);background:transparent!important;color:var(--wb164-assistant-text)!important;}
+html.codedrobe-host-workbuddy .cr-markdown :is(p,ul,ol,li) {background:transparent!important;color:inherit!important;}
+html.codedrobe-host-workbuddy .cr-markdown :is(table,pre,blockquote) {background:var(--wb164-detail)!important;color:var(--wb164-assistant-text)!important;border-color:var(--wb164-edge)!important;}
+html.codedrobe-host-workbuddy .cr-markdown :is(th,td,hr) {border-color:var(--wb164-edge)!important;}
+html.codedrobe-host-workbuddy .cr-markdown :is(th,td) {background:transparent!important;color:inherit!important;}
+html.codedrobe-host-workbuddy .cr-markdown code {background:var(--wb164-detail)!important;}
+html.codedrobe-host-workbuddy .cr-markdown pre code {background:transparent!important;}
+html.codedrobe-host-workbuddy .cr-markdown a {color:var(--wb164-focus)!important;}
+html.codedrobe-host-workbuddy .cr-input-container,
+html.codedrobe-host-workbuddy :is(.wb-home-composer__input-slot,.conversation-input-area,.project-detail-view) .cr-input-container {background:var(--wb164-composer)!important;color:var(--wb164-composer-text)!important;border-color:transparent!important;box-shadow:inset 0 0 0 1px var(--wb164-edge)!important;}
+html.codedrobe-host-workbuddy .cr-input-box :is([contenteditable='true'],textarea) {background:transparent!important;color:var(--wb164-composer-text)!important;caret-color:var(--wb164-focus)!important;box-shadow:none!important;}
+html.codedrobe-host-workbuddy .cr-input-box [data-slate-placeholder='true'] {color:var(--wb164-muted)!important;}
+html.codedrobe-host-workbuddy .cr-input-container:focus-within {box-shadow:inset 0 0 0 2px var(--wb164-focus)!important;}
+html.codedrobe-host-workbuddy .cr-input-toolbar button:not(.cr-send-button) {color:var(--wb164-composer-text)!important;background:transparent!important;}
+html.codedrobe-host-workbuddy .cr-input-toolbar button:not(.cr-send-button):hover:not(:disabled) {background:var(--wb164-selected)!important;}
+html.codedrobe-host-workbuddy .cr-input-box .cr-input-container .cr-input-toolbar button.cr-send-button {background:var(--wb164-primary)!important;color:var(--wb164-primary-text)!important;border-color:transparent!important;box-shadow:none!important;}
+html.codedrobe-host-workbuddy .cr-input-box .cr-input-container .cr-input-toolbar button.cr-send-button:hover:not(:disabled) {background:var(--wb164-hover)!important;}
+html.codedrobe-host-workbuddy .cr-input-box .cr-input-container .cr-input-toolbar button.cr-send-button:disabled {background:var(--wb164-selected)!important;color:var(--wb164-muted)!important;}
+/* Official send/stop glyph is a disc with an even-odd cut-out, not a solid arrow. */
+html.codedrobe-host-workbuddy .cr-input-box .cr-input-container .cr-input-toolbar button.cr-send-button:not(.cr-send-button--custom):has(.cr-send-button__icon>svg>path[fill-rule='evenodd']) {background:var(--wb164-primary-text)!important;color:var(--wb164-primary)!important;--cr-send-button-fill-disabled:var(--wb164-muted);}
+html.codedrobe-host-workbuddy .cr-input-box .cr-input-container .cr-input-toolbar button.cr-send-button:not(.cr-send-button--custom):has(.cr-send-button__icon>svg>path[fill-rule='evenodd']):hover:not(:disabled) {color:var(--wb164-hover)!important;}
+html.codedrobe-host-workbuddy :is(.cr-popover,.cr-sub-menu__overlay,.cr-model-selector__popover,.cr-menu,[role='menu'],[role='listbox']) {background:var(--wb164-menu)!important;color:var(--wb164-menu-text)!important;--cr-text-primary:var(--wb164-menu-text);border-color:var(--wb164-edge)!important;}
+html.codedrobe-host-workbuddy [role='dialog'] {background:var(--wb164-dialog)!important;color:var(--wb164-dialog-text)!important;--cr-text-primary:var(--wb164-dialog-text);}
+html.codedrobe-host-workbuddy :is(.cr-menu-item,.cr-popover [role='option']):is(:hover,[aria-selected='true']) {background:var(--wb164-selected)!important;}
+html.codedrobe-host-workbuddy .cr-input-box :is(button,[contenteditable='true']):focus-visible {outline:2px solid var(--wb164-focus)!important;outline-offset:2px!important;}

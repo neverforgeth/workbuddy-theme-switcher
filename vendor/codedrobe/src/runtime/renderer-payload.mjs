@@ -1,3 +1,5 @@
+import { domProbe, paintProbe } from '../adapters/workbuddy-compat/index.mjs';
+
 function safeHostClass(appId) {
   return `codedrobe-host-${String(appId).replace(/[^a-z0-9_-]/gi, "-")}`;
 }
@@ -120,7 +122,14 @@ function buildCompatibilityPrelude(adapter, themeVerification = null) {
       if (!item.pass && item.severity === 'required') missing.push(diagnostic(item));
       if (!item.pass && item.severity === 'recommended') warnings.push(diagnostic(item));
     }
+    const hostContract = ${adapter.structuralContract ? domProbe : 'null'};
+    if (hostContract) for (const check of hostContract.checks) {
+      const item = {scope:'adapter',context:hostContract.scene,severity:'required',name:check.name,pass:check.pass,selectors:[],invalidSelectors:[]};
+      requirements.push(item);
+      if (!check.pass) missing.push(diagnostic(item));
+    }
     const compatibility = {
+      hostContract,
       appId,
       compatible: missing.length === 0,
       rootMatches: root.matches,
@@ -155,6 +164,7 @@ export function buildApplyExpression({ adapter, targetTheme }) {
     rootState.hosts ||= {};
     rootState.hosts[host.id]?.cleanup?.();
     const imageUrls = {};
+    const imageBlobs = new Map();
     const ownedImageUrls = new Set();
     const resolveImageUrl = (dataUrl) => {
       if (!dataUrl?.startsWith('data:')) return null;
@@ -164,7 +174,9 @@ export function buildApplyExpression({ adapter, targetTheme }) {
         const binary = globalThis.atob(dataUrl.slice(comma + 1));
         const bytes = new Uint8Array(binary.length);
         for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-        const objectUrl = globalThis.URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+        const blob = new Blob([bytes], { type: mimeType });
+        const objectUrl = globalThis.URL.createObjectURL(blob);
+        imageBlobs.set(objectUrl, blob);
         ownedImageUrls.add(objectUrl);
         return objectUrl;
       } catch { /* Small data URLs remain a safe fallback when object URLs are unavailable. */ }
@@ -253,8 +265,19 @@ export function buildApplyExpression({ adapter, targetTheme }) {
       },
       themeId: theme.id, version: theme.version,
       imageNames: Object.keys(imageUrls),
+      imageReady: false,
       profileId, verifyProfile: profileRuntime?.verify ?? null,
     };
+    const currentState=rootState.hosts[host.id];
+    currentState.imageDecode=Promise.all(Object.values(imageUrls).map(src=>{
+      const blob=imageBlobs.get(src);
+      // Image.decode waits for a rendering opportunity in an occluded Electron window.
+      // Decode the exact owned bytes without depending on foreground animation frames.
+      if(blob && typeof globalThis.createImageBitmap==='function') return globalThis.createImageBitmap(blob).then(bitmap=>{
+        const valid=bitmap.width>0&&bitmap.height>0;bitmap.close();if(!valid)throw new Error('Invalid image dimensions');
+      });
+      const image=new Image(); image.src=src; return image.decode();
+    })).then(()=>{currentState.imageReady=true;return true;},()=>false).finally(()=>imageBlobs.clear());
     ensure();
     return { installed: true, appId: host.id, themeId: theme.id, version: theme.version };
   })()`;
@@ -302,12 +325,14 @@ export function buildVerifyExpression(adapter, expectedTheme = null, themeVerifi
   const profile = resolveRendererProfile(adapter, targetTheme);
   const expected = JSON.stringify(expectedTheme);
   const expectedProfileId = JSON.stringify(profile?.id ?? null);
-  return `(() => {
+  return `(async () => {
     ${buildCompatibilityPrelude(adapter, themeVerification)}
     const expected = ${expected};
     const expectedProfileId = ${expectedProfileId};
     const state = window.__CODEDROBE__?.hosts?.[appId];
+    const imagesReady = state?.imageDecode ? await Promise.race([state.imageDecode,new Promise(resolve=>setTimeout(()=>resolve(false),2000))]) : true;
     const profile = state?.verifyProfile?.() ?? null;
+    const coverage = ${adapter.structuralContract ? paintProbe : 'null'};
     const profileMissing = (profile?.missing ?? []).map((item) => ({
       scope: 'profile', context: profile.id ?? state?.profileId ?? null, severity: 'required',
       name: item.name, selectors: item.selectors ?? [], invalidSelectors: [],
@@ -321,11 +346,24 @@ export function buildVerifyExpression(adapter, expectedTheme = null, themeVerifi
       horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       images: state?.imageNames ?? [],
       profile,
+      coverage,
     };
-    result.missing = [...result.missing, ...profileMissing];
+    result.missing = [...result.missing, ...profileMissing,...(coverage?.checks??[]).filter(c=>c.status==='failed').map(c=>({scope:'adapter',severity:'required',name:c.name,selectors:[],invalidSelectors:[]}))];
     const themeMatches = !expected || (result.themeId === expected.id && result.version === expected.version);
     const profileMatches = !expectedProfileId || (state?.profileId === expectedProfileId && profile?.pass === true);
-    result.pass = result.compatible && result.installed && result.stylePresent && themeMatches &&
+    const actualStyle = document.getElementById('codedrobe-theme-style-' + appId);
+    const cssMatches = ${targetTheme ? `actualStyle?.textContent === ${JSON.stringify(targetTheme.css)}` : 'true'};
+    // Legacy packages can still be probed by the CLI. Full CR paint acceptance requires
+    // the prepared runtime package; it is deliberately not inferred from a theme ID.
+    const coveragePass = !coverage || coverage.status === 'passed';
+    const gates = [
+      ['theme-identity', themeMatches], ['css-identity', cssMatches],
+      ['images-decoded', imagesReady], ['horizontal-layout', !result.horizontalOverflow],
+      ['runtime-installed', result.installed], ['style-present', result.stylePresent],
+      ['renderer-profile', profileMatches && (profile?.pass ?? true)],
+    ];
+    result.missing.push(...gates.filter(([,pass])=>!pass).map(([name])=>({scope:'adapter',severity:'required',name,selectors:[],invalidSelectors:[]})));
+    result.pass = result.compatible && result.installed && result.stylePresent && themeMatches && cssMatches && coveragePass && imagesReady &&
       profileMatches && (profile?.pass ?? true) && !result.horizontalOverflow;
     return result;
   })()`;

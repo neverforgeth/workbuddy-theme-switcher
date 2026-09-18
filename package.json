@@ -1,6 +1,6 @@
 {
   "name": "workbuddy-theme-switcher",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,8 @@
     "test:rust": "node scripts/run-with-cargo.mjs cargo test --manifest-path src-tauri/Cargo.toml",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:compat": "node --test tests/codedrobe-compatibility.test.mjs tests/codedrobe-cdp.test.mjs",
+    "test:compat": "node --test tests/codedrobe-compatibility.test.mjs tests/codedrobe-cdp.test.mjs tests/workbuddy-164.test.mjs",
+    "test:compat:visual": "node --test tests/workbuddy-164-browser.test.mjs",
     "check:builtin-compat": "node scripts/sync-builtin-compat.mjs --check"
   },
   "dependencies": {

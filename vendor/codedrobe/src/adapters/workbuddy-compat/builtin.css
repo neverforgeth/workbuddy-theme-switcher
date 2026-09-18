@@ -1,0 +1,15 @@
+/* Only aliases: finished-theme palettes and package bytes remain authoritative. */
+html.codedrobe-host-workbuddy {
+ --wb164-canvas:transparent;
+ --wb164-text:var(--cg-text); --wb164-muted:var(--cg-text-muted);
+ --wb164-assistant:rgb(var(--wb-theme-surface-chat-rgb) / .18);
+ --wb164-user:rgb(var(--wb-theme-user-message-rgb) / .36);
+ --wb164-composer:rgb(var(--wb-theme-surface-composer-rgb) / .72);
+ --wb164-composer-text:var(--cg-text); --wb164-assistant-text:var(--cg-text); --wb164-user-text:var(--cg-text);
+ --wb164-edge:var(--cg-border); --wb164-focus:var(--cg-brand-deep);
+ --wb164-primary:var(--cg-brand-deep); --wb164-primary-text:rgb(var(--wb-theme-white-rgb));
+ --wb164-hover:var(--cg-brand); --wb164-selected:var(--cg-brand-soft);
+ --wb164-menu:var(--cg-solid); --wb164-menu-text:var(--cg-text);
+ --wb164-dialog:var(--cg-solid); --wb164-dialog-text:var(--cg-text);
+ --wb164-detail:rgb(var(--wb-theme-card-soft-rgb) / .28);
+}

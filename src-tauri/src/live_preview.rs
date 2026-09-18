@@ -60,6 +60,21 @@ pub(crate) struct Cdp {
 impl Cdp {
     pub fn connect(port: u16) -> AppResult<Self> {
         let target = discover_renderer(port)?;
+        Self::from_target(port, &target)
+    }
+    pub fn connect_target(port: u16, id: &str) -> AppResult<Self> {
+        let target = renderer_targets(port)?
+            .into_iter()
+            .find(|t| t.target_id == id)
+            .ok_or_else(|| {
+                AppError::new(
+                    "TRIAL_RENDERER_CHANGED",
+                    "固定的 WorkBuddy 窗口已消失；等待恢复，不会切换到其他窗口。",
+                )
+            })?;
+        Self::from_target(port, &target)
+    }
+    pub fn from_target(port: u16, target: &RendererTarget) -> AppResult<Self> {
         let url = url::Url::parse(&target.websocket_debugger_url).map_err(|_| err())?;
         if url.scheme() != "ws"
             || !matches!(url.host_str(), Some("localhost" | "127.0.0.1"))
@@ -77,7 +92,7 @@ impl Cdp {
         Ok(Self {
             socket,
             next: 0,
-            target_id: target.target_id,
+            target_id: target.target_id.clone(),
         })
     }
     pub fn call(&mut self, method: &str, params: Value) -> AppResult<Value> {
@@ -154,7 +169,7 @@ impl Cdp {
         }
         v.pointer("/result/value").cloned().ok_or_else(err)
     }
-    pub fn verify(&mut self, expected_id: &str, expected_css: &str) -> AppResult<()> {
+    pub fn verify_identity(&mut self, expected_id: &str, expected_css: &str) -> AppResult<()> {
         let value=self.evaluate("(() => ({count:document.querySelectorAll('#codedrobe-theme-style-workbuddy').length,id:document.documentElement.dataset.codedrobeTheme,css:document.getElementById('codedrobe-theme-style-workbuddy')?.textContent}))()")?;
         if value["count"] != 1
             || value["id"].as_str() != Some(expected_id)
@@ -166,6 +181,29 @@ impl Cdp {
             ));
         }
         Ok(())
+    }
+    pub fn verify(&mut self, expected_id: &str, expected_css: &str) -> AppResult<()> {
+        self.verify_identity(expected_id, expected_css)?;
+        let images=self.evaluate("(async()=>{const state=window.__CODEDROBE__?.hosts?.workbuddy;return state?.imageDecode?await Promise.race([state.imageDecode,new Promise(resolve=>setTimeout(()=>resolve(false),2000))]):false})()")?;
+        if images != true {
+            return Err(AppError::new(
+                "COMPAT_IMAGE_INVALID",
+                "背景图片未完成解码，未报告应用成功。",
+            ));
+        }
+        self.coverage().and_then(|report| {
+            if report["status"] == "passed" {
+                Ok(())
+            } else {
+                Err(AppError::new(
+                    "COMPAT_STYLE_MISMATCH",
+                    "当前场景的必要组件或生效样式不匹配，已停止重复应用。",
+                ))
+            }
+        })
+    }
+    pub fn coverage(&mut self) -> AppResult<Value> {
+        self.evaluate(&workbuddy_compat::paint_expression())
     }
     pub fn theme_fingerprint(&mut self) -> AppResult<(u64, Option<String>, Option<String>)> {
         let value=self.evaluate("(() => ({count:document.querySelectorAll('#codedrobe-theme-style-workbuddy').length,id:document.documentElement.dataset.codedrobeTheme,css:document.getElementById('codedrobe-theme-style-workbuddy')?.textContent}))()")?;
@@ -339,17 +377,29 @@ pub(crate) struct CapturedFrame {
     pub view: RenderedPreview,
     pub png: Vec<u8>,
 }
+fn capture_probe() -> String {
+    include_str!("live-dom-probe.js").replace("__WORKBUDDY_DOM__", workbuddy_compat::DOM)
+}
 pub(crate) fn capture(
     cdp: &mut Cdp,
     trial_id: &str,
     doc: &theme_library::ThemeDocument,
     runtime_id: &str,
+    effective_css: &str,
     version: Option<String>,
 ) -> AppResult<CapturedFrame> {
     let start = Instant::now();
-    cdp.verify(runtime_id, &doc.compiled.css)?;
+    cdp.verify(runtime_id, effective_css)?;
     with_capture_paint(cdp, |cdp| {
-        capture_painted(cdp, trial_id, doc, runtime_id, version, start)
+        capture_painted(
+            cdp,
+            trial_id,
+            doc,
+            runtime_id,
+            effective_css,
+            version,
+            start,
+        )
     })
 }
 fn capture_painted(
@@ -357,12 +407,12 @@ fn capture_painted(
     trial_id: &str,
     doc: &theme_library::ThemeDocument,
     runtime_id: &str,
+    effective_css: &str,
     version: Option<String>,
     start: Instant,
 ) -> AppResult<CapturedFrame> {
     let geometry: Geometry =
-        serde_json::from_value(cdp.evaluate(include_str!("live-dom-probe.js"))?)
-            .map_err(|_| err())?;
+        serde_json::from_value(cdp.evaluate(&capture_probe())?).map_err(|_| err())?;
     if geometry.width == 0
         || geometry.height == 0
         || u64::from(geometry.width) * u64::from(geometry.height) > 16_000_000
@@ -378,9 +428,9 @@ fn capture_painted(
         "实机截图超过大小限制。",
     )?;
     // Capture and metadata must still describe the same renderer, viewport and theme.
-    cdp.verify(runtime_id, &doc.compiled.css)?;
-    let after: Geometry = serde_json::from_value(cdp.evaluate(include_str!("live-dom-probe.js"))?)
-        .map_err(|_| err())?;
+    cdp.verify(runtime_id, effective_css)?;
+    let after: Geometry =
+        serde_json::from_value(cdp.evaluate(&capture_probe())?).map_err(|_| err())?;
     if after != geometry {
         return Err(AppError::new(
             "CAPTURE_CHANGED",
@@ -392,7 +442,7 @@ fn capture_painted(
         trial_id: trial_id.into(),
         draft_id: doc.draft_id.clone(),
         sequence: doc.edit_sequence,
-        css_hash: css_hash(&doc.compiled.css),
+        css_hash: css_hash(effective_css),
         target_id: cdp.target_id.clone(),
         width: geometry.width,
         height: geometry.height,

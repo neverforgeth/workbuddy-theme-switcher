@@ -1,0 +1,14 @@
+/* Only aliases: image region parameters, not finished-theme colors. */
+html.codedrobe-host-workbuddy {
+ /* .teams-content-wrapper already owns --fusion-main-bg; never stack the same alpha. */
+ --wb164-canvas:transparent; --wb164-text:var(--fusion-main-text); --wb164-muted:var(--fusion-main-muted);
+ --wb164-assistant:var(--fusion-assistant-bg); --wb164-assistant-text:var(--fusion-assistant-text);
+ --wb164-user:var(--fusion-user-bg); --wb164-user-text:var(--fusion-user-text);
+ --wb164-composer:var(--fusion-composer-bg); --wb164-composer-text:var(--fusion-composer-text);
+ --wb164-edge:var(--fusion-main-edge); --wb164-focus:var(--fusion-composer-focus);
+ --wb164-primary:var(--fusion-primary-bg); --wb164-primary-text:var(--fusion-primary-text);
+ --wb164-hover:var(--fusion-primary-hover); --wb164-selected:var(--fusion-secondary-selected);
+ --wb164-menu:var(--fusion-menu-bg); --wb164-menu-text:var(--fusion-menu-text);
+ --wb164-dialog:var(--fusion-dialog-bg); --wb164-dialog-text:var(--fusion-dialog-text);
+ --wb164-detail:var(--fusion-detail-bg);
+}

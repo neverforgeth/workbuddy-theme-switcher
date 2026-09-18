@@ -43,6 +43,7 @@ export const studioApi = {
     invoke<OperationResult>("studio_apply", { reference, allowRestart }),
   restore: () => invoke<OperationResult>("studio_restore"),
   runtime: () => invoke<RuntimeSnapshot>("studio_runtime"),
+  exportDiagnostic: () => invoke<string>("studio_export_diagnostic"),
   autoKeep: (enabled: boolean) => invoke("studio_auto_keep", { enabled }),
   setPath: (path: string) => invoke("studio_set_path", { path }),
   startTrial: (draftId: string, allowRestart = false) =>

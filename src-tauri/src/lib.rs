@@ -32,6 +32,7 @@ mod theme_engine;
 mod theme_fusion;
 mod theme_library;
 mod theme_model;
+mod workbuddy_compat;
 mod workbuddy_session;
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tungstenite::{client, stream::MaybeTlsStream, Message, WebSocket};
@@ -436,6 +437,7 @@ pub fn run() {
             workbuddy_session::studio_resolve_recovery,
             workbuddy_session::studio_confirm_trial,
             workbuddy_session::studio_runtime,
+            workbuddy_compat::studio_export_diagnostic,
             clear_legacy_ai_credentials,
             open_logs_directory,
         ])
@@ -588,13 +590,17 @@ fn detect_workbuddy_inner(app: &AppHandle) -> AppResult<WorkBuddyStatus> {
     // A missing theme node is normal after a renderer refresh. CDP availability must be based on
     // renderer discovery rather than on the optional metadata read, otherwise automatic recovery
     // incorrectly treats a healthy CDP endpoint as requiring a WorkBuddy restart.
-    let renderer_available = running && discover_renderer(port).is_ok();
-    let metadata = if renderer_available {
-        read_theme_node_metadata(port).ok()
+    let cdp_available = running && renderer_targets(port).is_ok_and(|t| !t.is_empty());
+    let renderer = if cdp_available {
+        Some(discover_renderer(port))
     } else {
         None
     };
-    let cdp_available = renderer_available;
+    let renderer_available = renderer.as_ref().is_some_and(Result::is_ok);
+    let metadata = renderer
+        .as_ref()
+        .and_then(|r| r.as_ref().ok())
+        .and_then(|t| read_theme_node_metadata_for_target(t).ok());
     let catalog = theme_catalog(app).unwrap_or_default();
     let current_theme_id = metadata.as_ref().and_then(|item| {
         item.runtime_theme_id.as_ref().map(|runtime_id| {
@@ -609,11 +615,17 @@ fn detect_workbuddy_inner(app: &AppHandle) -> AppResult<WorkBuddyStatus> {
                 })
         })
     });
-    let message = match (running, cdp_available, current_theme_id.as_deref()) {
-        (false, _, _) => "WorkBuddy 未运行；应用或试用前请确认启动。".to_string(),
-        (true, false, _) => "WorkBuddy 正在运行，但未开放 CDP；请在切换器中确认重启。".to_string(),
-        (true, true, Some(_)) => "已连接 WorkBuddy，检测到 CodeDrobe 主题。".to_string(),
-        (true, true, None) => "已连接 WorkBuddy，当前为原版状态。".to_string(),
+    let message = if let Some(Err(error)) = &renderer {
+        error.message.clone()
+    } else {
+        match (running, cdp_available, current_theme_id.as_deref()) {
+            (false, _, _) => "WorkBuddy 未运行；应用或试用前请确认启动。".to_string(),
+            (true, false, _) => {
+                "WorkBuddy 正在运行，但未开放 CDP；请在切换器中确认重启。".to_string()
+            }
+            (true, true, Some(_)) => "已连接 WorkBuddy，检测到 CodeDrobe 主题。".to_string(),
+            (true, true, None) => "已连接 WorkBuddy，当前为原版状态。".to_string(),
+        }
     };
     Ok(WorkBuddyStatus {
         app_found: true,
@@ -656,18 +668,28 @@ fn apply_theme_locked(
             wait_for_renderer(port)?;
         }
     }
-    // The monitor has already discovered a live renderer before it reaches this path. Calling a
-    // second short-lived probe immediately after its raw metadata check can race Electron's CDP
-    // socket during a refresh. CodeDrobe's apply command performs the same compatibility check;
-    // retries remain bounded by the monitor. Manual application keeps the explicit readiness probe
-    // so the UI can report a loading page before changing its style node.
-    if origin == ApplyOrigin::Manual {
-        wait_for_theme_probe(app, &theme, port)?;
+    let mut cdp = if let Some(id) = workbuddy_session::pinned_target(app) {
+        live_preview::Cdp::connect_target(port, &id)?
+    } else {
+        live_preview::Cdp::connect(port)?
+    };
+    let contract = cdp.evaluate(workbuddy_compat::DOM)?;
+    let structure = contract["structure"].as_str().unwrap_or("unknown");
+    let (theme, effective) = workbuddy_compat::prepare(app, &theme, structure)?;
+    let target_id = cdp.target_id.clone();
+    // Pin both CDP implementations to the same structural target before any mutation.
+    if contract["compatible"] != true {
+        return Err(AppError::new(
+            "COMPAT_STRUCTURE_UNSUPPORTED",
+            "必要页面组件不完整，未应用主题。",
+        ));
     }
+    let mut transaction = workbuddy_compat::begin_apply(app, &mut cdp, &theme, &effective)?;
 
     // WorkBuddy is launched by this process with CREATE_NO_WINDOW. CodeDrobe only attaches to the
     // renderer afterwards, so neither Node nor CodeDrobe has to create a child WorkBuddy process.
-    let args = vec![
+    let restoring = workbuddy_session::restoring_css(app, &theme.record.id).is_some();
+    let mut args = vec![
         "apply".to_string(),
         "--app".to_string(),
         "workbuddy".to_string(),
@@ -680,7 +702,17 @@ fn apply_theme_locked(
         "--no-launch".to_string(),
         "--json".to_string(),
     ];
-    if let Err(error) = run_codedrobe(app, &args) {
+    if restoring {
+        args.push("--restore-baseline".into());
+    }
+    if let Err(mut error) = run_codedrobe_target(app, &args, Some(&target_id)) {
+        workbuddy_compat::record_apply_failure(app, &mut transaction, &error.code)?;
+        let recovered = workbuddy_compat::rollback_apply(app, &transaction, port).is_ok();
+        error.message.push_str(if recovered {
+            " 已恢复操作前效果。"
+        } else {
+            " 操作前效果待恢复，已保留恢复记录。"
+        });
         write_log(
             app,
             action_for(origin),
@@ -703,25 +735,32 @@ fn apply_theme_locked(
         port.to_string(),
         "--json".to_string(),
     ];
-    let verified = run_codedrobe(app, &verify_args)
-        .as_ref()
-        .is_ok_and(codedrobe_verify_passes);
-    let metadata = read_theme_node_metadata(port);
-    let node_ok = metadata.as_ref().is_ok_and(|item| {
-        item.style_node_count == 1
-            && item.runtime_theme_id.as_deref() == Some(&theme.record.runtime_theme_id)
+    let verified = if restoring {
+        Ok(())
+    } else {
+        run_codedrobe_target(app, &verify_args, Some(&target_id)).and_then(|result| {
+            if codedrobe_verify_passes(&result) { Ok(()) } else {
+                Err(AppError::new("COMPAT_STYLE_MISMATCH", "当前场景样式校验未通过。"))
+            }
+        })
+    };
+    let verified = verified.and_then(|_| if restoring {
+        cdp.verify_identity(&theme.record.runtime_theme_id, &effective.css)
+    } else {
+        cdp.verify(&theme.record.runtime_theme_id, &effective.css)
     });
-    if !verified || !node_ok {
-        let rollback_succeeded = restore_with_codedrobe(app, port).is_ok();
-        let code = if !verified {
-            "VERIFY_FAILED"
-        } else {
-            "STYLE_NODE_COUNT_INVALID"
-        };
+    if let Err(error) = verified {
+        let code = error.code.as_str();
+        workbuddy_compat::record_apply_failure(app, &mut transaction, code)?;
+        let rollback_succeeded = workbuddy_compat::rollback_apply(app, &transaction, port).is_ok();
         write_log(
             app,
             action_for(origin),
-            "rolled-back",
+            if rollback_succeeded {
+                "rolled-back"
+            } else {
+                "pending-recovery"
+            },
             Some(&theme.record.id),
             status.path.as_deref(),
             status.version.as_deref(),
@@ -730,12 +769,13 @@ fn apply_theme_locked(
         return Err(AppError::new(
             code,
             if rollback_succeeded {
-                "主题验证未通过，已自动恢复 WorkBuddy 原版。"
+                "主题验证未通过，已恢复操作前的效果。"
             } else {
-                "主题验证未通过，自动恢复原版也未完成。"
+                "主题验证未通过，之前效果待恢复；已保留恢复记录。"
             },
         ));
     }
+    workbuddy_compat::finish_apply(app)?;
     write_log(
         app,
         action_for(origin),
@@ -894,7 +934,7 @@ fn monitor_tick(
     _background_mode: bool,
     retry: &mut RetryControl,
 ) {
-    if workbuddy_session::has_trial(app) {
+    if workbuddy_session::has_trial(app) || workbuddy_compat::pending(app) {
         return;
     }
     if monitor.retry_reset_requested.swap(false, Ordering::SeqCst) {
@@ -992,9 +1032,31 @@ fn monitor_tick(
         }
     };
     let metadata = read_theme_node_metadata_for_target(&target);
-    let healthy = metadata.as_ref().is_ok_and(|item| {
+    let identified = metadata.as_ref().is_ok_and(|item| {
         item.style_node_count == 1 && item.runtime_theme_id.as_deref() == Some(&expected)
     });
+    let report = if identified {
+        workbuddy_compat::observe(app).ok()
+    } else {
+        None
+    };
+    let healthy = report
+        .as_ref()
+        .is_some_and(|r| r["status"] == "passed" && r["identity"] == true);
+    if identified
+        && report
+            .as_ref()
+            .is_some_and(|r| r["status"] == "failed" && r["migrationRequired"] != true)
+    {
+        retry.record_error("COMPAT_STYLE_MISMATCH");
+        update_monitor(
+            monitor,
+            "当前场景适配未通过，已停止重复应用",
+            retry.attempts,
+            Some("COMPAT_STYLE_MISMATCH"),
+        );
+        return;
+    }
     let key = format!("{}:{}", theme_id, target.target_id);
     let recovery_observation_changed = retry.reset_if_key_changed(key);
     if healthy {
@@ -1889,6 +1951,35 @@ fn renderer_matches(target: &CdpTarget) -> bool {
 }
 
 fn discover_renderer(port: u16) -> AppResult<RendererTarget> {
+    let targets = renderer_targets(port)?;
+    let mut compatible = Vec::new();
+    for target in targets {
+        if let Ok(mut cdp) = live_preview::Cdp::from_target(port, &target) {
+            if cdp.evaluate(workbuddy_compat::DOM).is_ok_and(|v| {
+                v["checks"].as_array().is_some_and(|checks| {
+                    checks
+                        .iter()
+                        .any(|c| c["name"] == "host-root" && c["pass"] == true)
+                })
+            }) {
+                compatible.push(target);
+            }
+        }
+    }
+    if compatible.len() > 1 {
+        return Err(AppError::new(
+            "CDP_TARGET_AMBIGUOUS",
+            "检测到多个 WorkBuddy 主窗口，请保留一个需要换肤的主窗口后重试。",
+        ));
+    }
+    compatible.pop().ok_or_else(|| {
+        AppError::new(
+            "CDP_RENDERER_NOT_FOUND",
+            "未找到结构可识别的 WorkBuddy 主窗口。",
+        )
+    })
+}
+fn renderer_targets(port: u16) -> AppResult<Vec<RendererTarget>> {
     let agent = ureq::AgentBuilder::new()
         .redirects(0)
         .try_proxy_from_env(false)
@@ -1902,14 +1993,14 @@ fn discover_renderer(port: u16) -> AppResult<RendererTarget> {
     let targets: Vec<CdpTarget> = response
         .into_json()
         .map_err(|_| AppError::new("CDP_PROTOCOL_ERROR", "WorkBuddy CDP 返回了无效数据。"))?;
-    let target = targets
+    Ok(targets
         .into_iter()
-        .find(renderer_matches)
-        .ok_or_else(|| AppError::new("CDP_RENDERER_NOT_FOUND", "未找到 WorkBuddy renderer。"))?;
-    Ok(RendererTarget {
-        target_id: target.id,
-        websocket_debugger_url: target.websocket_debugger_url.unwrap_or_default(),
-    })
+        .filter(renderer_matches)
+        .map(|target| RendererTarget {
+            target_id: target.id,
+            websocket_debugger_url: target.websocket_debugger_url.unwrap_or_default(),
+        })
+        .collect())
 }
 
 fn read_theme_node_metadata(port: u16) -> AppResult<ThemeNodeMetadata> {
@@ -2029,11 +2120,19 @@ fn parse_theme_node_metadata(value: &Value) -> AppResult<ThemeNodeMetadata> {
     })
 }
 
-fn run_codedrobe(app: &AppHandle, args: &[String]) -> AppResult<Value> {
+fn run_codedrobe_target(
+    app: &AppHandle,
+    args: &[String],
+    target: Option<&str>,
+) -> AppResult<Value> {
     let cli = child_process_path(&find_codedrobe_cli(app)?);
     let node = child_process_path(&find_node_runtime(app)?);
     let mut command = Command::new(node);
     configure_hidden_command(&mut command);
+    command.env_remove("WORKBUDDY_CODEDROBE_TARGET_ID");
+    if let Some(id) = target {
+        command.env("WORKBUDDY_CODEDROBE_TARGET_ID", id);
+    }
     command
         .arg(&cli)
         .args(args)
@@ -2152,10 +2251,7 @@ fn child_process_path_string(path: &Path) -> String {
     child_process_path(path).to_string_lossy().to_string()
 }
 
-fn wait_for_theme_probe(app: &AppHandle, theme: &ResolvedTheme, port: u16) -> AppResult<()> {
-    run_codedrobe(app, &theme_probe_args(&theme.package_path, port)).map(|_| ())
-}
-
+#[cfg(test)]
 fn theme_probe_args(theme_package: &Path, port: u16) -> Vec<String> {
     vec![
         "probe".to_string(),
@@ -2195,7 +2291,13 @@ fn codedrobe_verify_passes(value: &Value) -> bool {
 }
 
 fn restore_with_codedrobe(app: &AppHandle, port: u16) -> AppResult<Value> {
-    run_codedrobe(
+    let target = workbuddy_session::pinned_target(app)
+        .map(Ok)
+        .unwrap_or_else(|| discover_renderer(port).map(|t| t.target_id))?;
+    restore_with_codedrobe_target(app, port, &target)
+}
+fn restore_with_codedrobe_target(app: &AppHandle, port: u16, target: &str) -> AppResult<Value> {
+    let result = run_codedrobe_target(
         app,
         &[
             "restore".to_string(),
@@ -2205,7 +2307,16 @@ fn restore_with_codedrobe(app: &AppHandle, port: u16) -> AppResult<Value> {
             port.to_string(),
             "--json".to_string(),
         ],
-    )
+        Some(target),
+    )?;
+    let (count, _, _) = live_preview::Cdp::connect_target(port, target)?.theme_fingerprint()?;
+    if count != 0 {
+        return Err(AppError::new(
+            "RESTORE_VERIFY_FAILED",
+            "主题节点仍存在，未报告恢复成功。",
+        ));
+    }
+    Ok(result)
 }
 
 fn validate_controls(controls: &ThemeControls) -> AppResult<()> {

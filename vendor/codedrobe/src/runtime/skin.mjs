@@ -1,5 +1,6 @@
 import { launchApp } from "./launcher.mjs";
 import { applyTheme, describeMissingRequirements, describeTarget, removeTheme } from "./injector.mjs";
+import process from 'node:process';
 import { prepareHostSettings, publicHostSettingsResult, restoreHostSettings } from "./host-settings.mjs";
 
 function describeVerifyFailure(item) {
@@ -68,7 +69,9 @@ export async function applySkin({
       targets,
     };
   } catch (error) {
-    if (rendererMutated || error.rendererMutated) {
+    // The pinned desktop host owns a durable previous-theme transaction. Do not
+    // erase its evidence or blindly restore native before its identity guard runs.
+    if ((rendererMutated || error.rendererMutated) && !process.env.WORKBUDDY_CODEDROBE_TARGET_ID) {
       try {
         error.rendererRollback = await removeTheme({
           adapter,

@@ -47,6 +47,12 @@ export function SettingsPanel({
             <dd>{snapshot?.workbuddy.message || "正在检测…"}</dd>
             <dt>样式节点</dt>
             <dd>{snapshot?.workbuddy.styleNodeCount ?? "未检测"}</dd>
+            <dt>当前场景覆盖</dt>
+            <dd>{snapshot?.compatibility ? `${snapshot.compatibility.scene} · ${snapshot.compatibility.status === 'passed' ? '已执行项通过（不代表全部场景）' : snapshot.compatibility.code}` : '未检查'}</dd>
+            <dt>适配版本</dt>
+            <dd>{snapshot?.compatibility?.adapterVersion ?? '未检查'}</dd>
+            <dt>未检查区域</dt>
+            <dd>{snapshot?.compatibility?.unchecked.join('、') || '查看诊断报告；未出现的状态不算通过'}</dd>
             <dt>自动保持</dt>
             <dd>{snapshot?.runtime.monitorStatus || "未检测"}</dd>
             <dt>恢复重试</dt>
@@ -59,6 +65,7 @@ export function SettingsPanel({
             </dd>
           </dl>
           <div className="button-row">
+            <button onClick={()=>void api.exportDiagnostic().then(path=>notify(`脱敏诊断已导出：${path}`)).catch(e=>notify(errorText(e)))}>导出脱敏诊断</button>
             <button
               disabled={!!snapshot?.trial}
               onClick={() => void choosePath()}

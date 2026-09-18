@@ -1,16 +1,16 @@
-# WorkBuddy 主题工作台 1.6.3（兼容修复候选版）
+# WorkBuddy 主题工作台 1.6.4（兼容修复候选版）
 
 纯离线图片主题编辑器，沿用 Tauri、React 和 CodeDrobe。流程：**上传图片 → 本地推荐风格 → 开始真实预览 → 微调 → 保存或保留应用**。不生成或美化原图，不接入 AI，不改变 WorkBuddy 的功能布局。
 
-1.6.3 修复内置主题在新版输入框结构上的必要组件误判，以及附属空白窗口拖住换肤预检查的问题。补齐 5.5 系列 `.cr-input-container` 的外观，保留旧输入框支持；错误码与失败检查项会安全传递到界面和日志，确定性故障暂停自动重试。安装包自带 Node 和 CodeDrobe，无需命令行配置。修复依据、回归与验收边界见 [1.6.3 验证说明](docs/1.6.3-validation.md)。
+1.6.4 增加新版首页与会话的运行时兼容层，修复正文白底遮挡背景、组件漏配色和“没有检查也判通过”的问题；同时修复后台图片解码及回退命令参数。成品主题与图片主题分别读取自己的颜色，原主题包不改写。安装包自带 Node 和 CodeDrobe，无需命令行配置。修复依据、回归与验收边界见 [1.6.4 验证说明](docs/1.6.4-validation.md)。
 
-原有图片融合 v2、默认零模糊、草稿/不可变修订、试用与恢复流程保持不变。当前仍为候选版，不自动覆盖安装或重启 WorkBuddy。历史验证记录：[1.6.2](docs/1.6.2-validation.md)、[1.6.1](docs/1.6.1-validation.md)、[1.6.0](docs/1.6.0-validation.md)。
+原有图片融合 v2、默认零模糊、草稿/不可变修订、试用与恢复流程保持不变。当前为预发布候选版，不自动覆盖安装或重启 WorkBuddy。本机 5.5.6 的试用与回退生命周期已测，但完整视觉场景验收仍待完成，不等同于全部适配通过。历史验证记录：[1.6.3](docs/1.6.3-validation.md)、[1.6.2](docs/1.6.2-validation.md)、[1.6.1](docs/1.6.1-validation.md)、[1.6.0](docs/1.6.0-validation.md)。
 
 ## 下载后使用
 
-从 [Releases](https://github.com/neverforgeth/workbuddy-theme-switcher/releases) 下载 **1.6.3 Windows x64 安装包**，退出旧切换器后安装。打开切换器，自动识别 WorkBuddy 路径，选择内置主题并应用；已经连上 CDP 时不需要重启。未开放 CDP 时，保存工作后在界面单独确认启动/重启即可，不需要运行命令。若电脑缺少 WebView2，安装器会调用内置引导程序安装运行环境，该首次安装步骤可能需要联网。
+从 [1.6.4 预发布](https://github.com/neverforgeth/workbuddy-theme-switcher/releases/tag/v1.6.4) 下载 **Windows x64 候选安装包**，保存未提交的编辑、退出旧切换器后安装。升级保留主题与设置，建议先备份 `%LOCALAPPDATA%\WorkBuddyThemeSwitcher`。打开切换器，自动识别 WorkBuddy 路径，选择内置主题并应用；已经连上 CDP 时不需要重启。未开放 CDP 时，保存工作后在界面单独确认启动/重启即可，不需要运行命令。若电脑缺少 WebView2，安装器会调用内置引导程序安装运行环境，该首次安装步骤可能需要联网。
 
-遇到必要组件不匹配时会明确报错并暂停重试；“设置与诊断”提供错误码和日志目录。不要关闭验证或编辑应用安装文件来强行注入。
+遇到必要组件或关键样式不匹配时会明确报错并暂停重试；“设置与诊断”提供当前场景覆盖、未检查区域、错误码和“导出脱敏诊断”。导出仅含版本、结构、静态检查项、错误码和耗时，不含聊天、账户、截图或 CSS。不要关闭验证或编辑应用安装文件来强行注入。
 
 ## 使用
 
@@ -59,9 +59,11 @@
 - `studio/trial.json`：未完成试用的原主题和自动保持恢复记录。
 - `studio/trash/`、`studio/recovery-archive/`：回收的主题和人工处理的异常记录。
 - `custom-themes/`：更早版本主题原包。
+- `effective-themes/`：原 CSS 与匹配的兼容补丁组合后的运行时缓存，不是新主题修订。
+- `apply-recovery.json`：普通应用失败／中断时恢复已知原效果的记录；恢复未验证前不清除。
 - `state.json`：路径、固定主题 ID＋修订和自动保持状态；`logs/` 只记录操作元数据。
 
-旧 schema 1/2 的 advice、九区设计及已编译 CSS 保留。读取、打开或直接应用旧修订不重新编译；普通编辑仍走原版本编译路径，只有主动采用新风格才转为 v3 草稿并保存新修订。内置主题只读。无编辑参数的早期包通过图片创建副本，原包不变。
+旧 schema 1/2 的 advice、九区设计及已编译 CSS 保留。读取、打开或直接应用旧修订不重新计算配色或覆盖原 CSS；适配新组件时仅在运行时附加兼容补丁。无法识别颜色契约的早期主题不猜测配色，会明确报兼容限制。普通编辑仍走原版本编译路径，只有主动采用新风格才转为 v3 草稿并保存新修订。内置主题只读。无编辑参数的早期包通过图片创建副本，原包不变。
 
 风格 v1 不会原地转换为 v2。“创建新版融合副本”使用新草稿 ID、保留图片/名称/背景位置/手动强调色，重新生成分区参数、模糊归零；不创建正式主题也不应用。原稿与旧修订字节不变；发布失败或取消保留原最近草稿入口。新副本沿用已有保存、试用与回退流程。
 
@@ -79,11 +81,14 @@
 | `theme_model.rs` | 旧配色数据类型，不含网络或凭据逻辑 |
 | `theme_library.rs` | 资源、草稿、不可变修订、原子发布与回收 |
 | `workbuddy_session.rs`、`live_preview.rs` | 运行快照、试用、回退、环回 CDP 与截图一致性 |
+| `workbuddy_compat.rs`、`vendor/codedrobe/src/adapters/workbuddy-compat/` | 共享结构／绘制契约、两条独立颜色映射、生效 CSS 身份与普通应用恢复 |
 | `lib.rs` | 既有 Windows/CodeDrobe 适配、路径发现、精确凭据清理、自动保持 |
 | `use-theme-editor.ts`、`studio-api.ts` | 单队列原子提交、迟到响应隔离与输入重基 |
 | `RealPreviewPanel.tsx`、`WorkBuddyThemePreview.tsx` | 主真实预览与辅助隔离样板 |
 
 运行态集中探测约 2.5 秒一次，前端事件为主、10 秒轮询补充。保留原有单实例与应用锁；未重写连接系统。
+
+`EffectiveTheme` 的最终 CSS／哈希用于应用、试用、同步、截图、确认与回退；不增加第二个补丁样式节点。兼容选择依据实际结构而不是仅比较版本号，旧结构不附加新版补丁。Rust 向内置 CLI 传入内部 `WORKBUDDY_CODEDROBE_TARGET_ID` 固定同一窗口，窗口消失不静默改连。该变量由程序管理，使用者无需配置。
 
 参考其他项目的组件约束、背景/面板分层及验证理念；本轮没有复制其他项目的品牌、人物或装饰素材，也没有增加市场、同步和主题包导入。
 
@@ -102,12 +107,15 @@ npm run test:compat
 $env:STUDIO_QA_FIXTURES = Join-Path (Get-Location) '.qa/engine-fixtures.json'
 npm run test:rust -- --lib export_real_engine_visual_fixtures
 $env:NO_PROXY = '127.0.0.1,localhost'
+# 官方 5.5.6 ASAR 仅在本机只读使用，不随仓库分发。
+$env:WORKBUDDY_556_ASAR = 'C:\path\to\WorkBuddy\resources\app.asar'
+npm run test:compat:visual
 npm run test:e2e
 npm run package:installer
 ```
 
 浏览器验收仅操作合成页面和脱敏样板，不连接 WorkBuddy。实机调试工具与 `STUDIO_RUN_QA` 流程必须另获授权，不应直接运行在未保存工作的实例上。
 
-默认构建输出 `src-tauri/target/release/bundle/nsis/WorkBuddy 主题切换器_1.6.0_x64-setup.exe`；设置了 `CARGO_TARGET_DIR` 时以该目录为准。交付包另外标记为候选版。
+默认构建输出 `src-tauri/target/release/bundle/nsis/WorkBuddy 主题切换器_1.6.4_x64-setup.exe`；设置了 `CARGO_TARGET_DIR` 时以该目录为准。交付包另外标记为候选版。
 
-本轮适配结构针对 WorkBuddy 5.2.6，不承诺全部 5.3.x。候选版实机验收清单和性能测量边界见验证说明。
+保留 5.2.6 旧结构路径，新增 5.5.6 新结构映射；不外推承诺其他版本。本机已验证 5.5.6 保存保留、关闭、断连、600 秒超时与崩溃恢复，并完成 1.6.1 → 1.6.4 覆盖安装的数据保留核对。完整视觉验收、全新安装与 1.6.3 升级等剩余门槛见验证说明。

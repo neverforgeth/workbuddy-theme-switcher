@@ -181,7 +181,7 @@ const HELP = renderGeneralHelp();
 function parseArguments(argv) {
   const options = {};
   const positional = [];
-  const boolean = new Set(["json", "watch", "restart-existing", "no-launch", "force", "check", "help", "version", "include-hidden", "no-open", "submit"]);
+  const boolean = new Set(["json", "watch", "restart-existing", "no-launch", "restore-baseline", "force", "check", "help", "version", "include-hidden", "no-open", "submit"]);
   const shortFlags = { "-h": "help", "-v": "version" };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
@@ -333,7 +333,9 @@ async function loadTargetTheme(themeFilename, appId) {
 }
 
 async function runApply(options) {
-  const adapter = getAdapter(requireOption(options, "app"));
+  let adapter = getAdapter(requireOption(options, "app"));
+  // Only the workbench's pinned, journaled rollback may restore a pre-adapter baseline.
+  if (options['restore-baseline'] && process.env.WORKBUDDY_CODEDROBE_TARGET_ID) adapter = {...adapter,structuralContract:false};
   const port = await resolveSessionPort(options, adapter);
   const { targetTheme } = await loadTargetTheme(requireOption(options, "theme"), adapter.id);
   const result = await applySkin({

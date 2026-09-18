@@ -18,6 +18,27 @@ const CODES: &[&str] = &[
     "CODEDROBE_COMMAND_FAILED",
 ];
 const CHECKS: &[&str] = &[
+    "home-canvas-paint",
+    "theme-identity", "css-identity", "images-decoded", "horizontal-layout", "runtime-installed", "style-present", "renderer-profile",
+    "host-root",
+    "known-scene",
+    "scene-composer",
+    "conversation-timeline",
+    "conversation-editor",
+    "canvas-paint",
+    "composer-paint",
+    "editor-paint",
+    "editor-text",
+    "assistant-paint",
+    "assistant-text",
+    "user-paint",
+    "menu-paint",
+    "dialog-paint",
+    "send-paint",
+    "send-disc",
+    "send-hover",
+    "send-disc-hover",
+    "single-style-node",
     "root",
     "home-header",
     "home-composer",
@@ -84,6 +105,13 @@ pub(crate) fn deterministic(code: &str) -> bool {
     matches!(
         code,
         "CODEDROBE_DOM_INCOMPATIBLE"
+            | "COMPAT_STYLE_MISMATCH"
+            | "COMPAT_STRUCTURE_UNSUPPORTED"
+            | "COMPAT_PALETTE_UNSUPPORTED"
+            | "COMPAT_IMAGE_INVALID"
+            | "APPLY_BASELINE_UNKNOWN"
+            | "APPLY_RECOVERY_PENDING"
+            | "CDP_TARGET_AMBIGUOUS"
             | "CODEDROBE_THEME_READ_FAILED"
             | "CODEDROBE_THEME_INVALID"
             | "CODEDROBE_VERIFY_FAILED"
